@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ConfiguracionEmpresa {
+  id                   Int      @id @default(autoincrement())
+  ruc                  String   @db.VarChar(20)
+  razonSocial          String   @default("Arte Parquet G&G") @map("razon_social") @db.VarChar(150)
+  direccion            String?
+  telefono             String?  @db.VarChar(20)
+  email                String?  @db.VarChar(100)
+  porcentajeIvaVigente Decimal? @default(15.00) @map("porcentaje_iva_vigente") @db.Decimal(5, 2)
+
+  @@map("configuracion_empresa")
+}
+
+model Usuario {
+  id           Int        @id @default(autoincrement())
+  username     String     @unique @db.VarChar(50)
+  passwordHash String     @map("password_hash") @db.VarChar(255)
+  rol          String     @default("vendedor") @db.VarChar(20)
+  estado       Boolean?   @default(true)
+  creadoEn     DateTime?  @default(now()) @map("creado_en") @db.Timestamp(6)
+  proformas    Proforma[]
+
+  @@map("usuarios")
+}
+
+model Cliente {
+  id                   Int        @id @default(autoincrement())
+  identificacion       String     @unique @db.VarChar(20)
+  nombres              String     @db.VarChar(100)
+  apellidosRazonSocial String     @map("apellidos_razon_social") @db.VarChar(150)
+  email                String?    @db.VarChar(100)
+  telefono             String?    @db.VarChar(20)
+  direccion            String?
+  creadoEn             DateTime?  @default(now()) @map("creado_en") @db.Timestamp(6)
+  actualizadoEn        DateTime?  @default(now()) @map("actualizado_en") @db.Timestamp(6)
+  proformas            Proforma[]
+
+  @@map("clientes")
+}
+
+model Proveedor {
+  id              Int             @id @default(autoincrement())
+  identificacion  String          @unique @db.VarChar(20)
+  razonSocial     String          @map("razon_social") @db.VarChar(150)
+  nombreComercial String?         @map("nombre_comercial") @db.VarChar(150)
+  direccion       String?
+  telefono        String?         @db.VarChar(20)
+  email           String?         @db.VarChar(100)
+  estado          Boolean?        @default(true)
+  creadoEn        DateTime?       @default(now()) @map("creado_en") @db.Timestamp(6)
+  actualizadoEn   DateTime?       @default(now()) @map("actualizado_en") @db.Timestamp(6)
+  facturasCompra  FacturaCompra[]
+
+  @@map("proveedores")
+}
+
+model Producto {
+  id               Int               @id @default(autoincrement())
+  codigo           String            @unique @db.VarChar(50)
+  nombre           String            @db.VarChar(150)
+  descripcion      String?
+  tipo             String            @db.VarChar(20)
+  precioBase       Decimal           @map("precio_base") @db.Decimal(10, 2)
+  stockActual      Int?              @default(0) @map("stock_actual")
+  aplicaIva        Boolean?          @default(true) @map("aplica_iva")
+  estado           Boolean?          @default(true)
+  detallesCompra   DetalleCompra[]
+  detallesProforma DetalleProforma[]
+
+  @@map("productos_servicios")
+}
+
+model FacturaCompra {
+  id            Int             @id @default(autoincrement())
+  numeroFactura String          @unique @map("numero_factura") @db.VarChar(50)
+  fechaEmision  DateTime        @map("fecha_emision") @db.Date
+  total         Decimal         @db.Decimal(12, 2)
+  creadoEn      DateTime?       @default(now()) @map("creado_en") @db.Timestamp(6)
+  proveedorId   Int             @map("proveedor_id")
+  detalles      DetalleCompra[]
+  proveedor     Proveedor       @relation(fields: [proveedorId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_proveedor")
+
+  @@map("facturas_compra")
+}
+
+model DetalleCompra {
+  id          Int           @id @default(autoincrement())
+  facturaId   Int           @map("factura_id")
+  productoId  Int           @map("producto_id")
+  cantidad    Int
+  precioCosto Decimal       @map("precio_costo") @db.Decimal(10, 2)
+  subtotal    Decimal       @db.Decimal(12, 2)
+  factura     FacturaCompra @relation(fields: [facturaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  producto    Producto      @relation(fields: [productoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("detalles_compra")
+}
+
+model Proforma {
+  id                  Int               @id @default(autoincrement())
+  numeroProforma      String            @unique @map("numero_proforma") @db.VarChar(20)
+  clienteId           Int               @map("cliente_id")
+  usuarioId           Int               @map("usuario_id")
+  fechaEmision        DateTime          @default(dbgenerated("CURRENT_DATE")) @map("fecha_emision") @db.Date
+  fechaValidez        DateTime          @map("fecha_validez") @db.Date
+  subtotalSinIva      Decimal           @default(0.00) @map("subtotal_sin_iva") @db.Decimal(12, 2)
+  porcentajeDescuento Decimal?          @default(0.00) @map("porcentaje_descuento") @db.Decimal(5, 2)
+  totalDescuento      Decimal           @default(0.00) @map("total_descuento") @db.Decimal(12, 2)
+  totalIva            Decimal           @default(0.00) @map("total_iva") @db.Decimal(12, 2)
+  totalFinal          Decimal           @default(0.00) @map("total_final") @db.Decimal(12, 2)
+  estado              String?           @default("EMITIDA") @db.VarChar(20)
+  observaciones       String?
+  creadoEn            DateTime?         @default(now()) @map("creado_en") @db.Timestamp(6)
+  detalles            DetalleProforma[]
+  cliente             Cliente           @relation(fields: [clienteId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario             Usuario           @relation(fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("proformas")
+}
+
+model DetalleProforma {
+  id                 Int      @id @default(autoincrement())
+  proformaId         Int      @map("proforma_id")
+  productoServicioId Int      @map("producto_servicio_id")
+  cantidad           Decimal  @db.Decimal(10, 2)
+  precioUnitario     Decimal  @map("precio_unitario") @db.Decimal(10, 2)
+  subtotal           Decimal  @db.Decimal(12, 2)
+  producto           Producto @relation(fields: [productoServicioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  proforma           Proforma @relation(fields: [proformaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("detalles_proforma")
+}
