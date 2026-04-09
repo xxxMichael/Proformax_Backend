@@ -8,12 +8,12 @@ const usuarioService = require('../services/usuario.service');
 
 const getAll = async (req, res, next) => {
   try {
-    const { page, limit, rol, activo } = req.query;
+    const { page, limit, rol, estado } = req.query;
     const result = await usuarioService.getAll({
       page:   parseInt(page)  || 1,
       limit:  parseInt(limit) || 20,
       rol,
-      activo: activo !== undefined ? activo === 'true' : undefined,
+      estado: estado !== undefined ? estado === 'true' : undefined,
     });
     res.set('X-Total-Count', result.total);
     return res.status(200).json({ success: true, ...result });

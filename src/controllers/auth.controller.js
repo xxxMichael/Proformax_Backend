@@ -10,11 +10,11 @@ const logger      = require('../config/logger');
 
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
     const ip        = req.ip || req.headers['x-forwarded-for'];
     const userAgent = req.headers['user-agent'];
 
-    const result = await authService.login(email, password, ip, userAgent);
+    const result = await authService.login(username, password, ip, userAgent);
     return res.status(200).json({ success: true, data: result });
   } catch (err) {
     next(err);
