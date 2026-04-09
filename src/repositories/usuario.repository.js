@@ -42,7 +42,7 @@ const create = (data) =>
 const update = (id, data) =>
   prisma.usuario.update({ where: { id }, data, select: SAFE_SELECT });
 
-const softDelete = (id) =>
-  prisma.usuario.update({ where: { id }, data: { estado: false }, select: SAFE_SELECT });
+const updateStatus = (id, estado) =>
+  prisma.usuario.update({ where: { id }, data: { estado }, select: SAFE_SELECT });
 
-module.exports = { findAll, count, findById, findByUsername, create, update, softDelete };
+module.exports = { findAll, count, findById, findByUsername, create, update, updateStatus };
