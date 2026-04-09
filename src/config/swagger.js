@@ -29,6 +29,11 @@ const swaggerDefinition = {
       },
     },
   },
+  security: [
+    {
+      bearerAuth: [],
+    },
+  ],
   paths: {
     '/health': {
       get: {
