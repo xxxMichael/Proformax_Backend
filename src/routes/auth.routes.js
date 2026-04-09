@@ -18,7 +18,7 @@ const router = Router();
 
 router.post('/login',
   [
-    body('email').isEmail().normalizeEmail().withMessage('Email válido requerido.'),
+    body('username').notEmpty().trim().withMessage('Username requerido.'),
     body('password').notEmpty().withMessage('Contraseña requerida.'),
     validate,
   ],

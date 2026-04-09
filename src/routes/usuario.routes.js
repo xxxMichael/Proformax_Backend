@@ -20,9 +20,7 @@ const router = Router();
 router.use(authenticate);
 
 const createValidation = [
-  body('nombre').notEmpty().trim().withMessage('Nombre requerido.'),
-  body('apellido').notEmpty().trim().withMessage('Apellido requerido.'),
-  body('email').isEmail().normalizeEmail().withMessage('Email válido requerido.'),
+  body('username').notEmpty().trim().isLength({ min: 3, max: 50 }).withMessage('Username válido requerido (3-50 caracteres).'),
   body('password').isLength({ min: 8 }).withMessage('Contraseña mínimo 8 caracteres.'),
   body('rol').isIn(['ADMIN', 'VENDEDOR', 'BODEGUERO']).withMessage('Rol inválido.'),
   validate,

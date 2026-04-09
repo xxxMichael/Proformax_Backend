@@ -9,11 +9,11 @@ const usuarioRepo = require('../repositories/usuario.repository');
 const authService = require('./auth.service');
 const { AppError } = require('../middlewares/errorHandler');
 
-const getAll = async ({ page = 1, limit = 20, rol, activo } = {}) => {
+const getAll = async ({ page = 1, limit = 20, rol, estado } = {}) => {
   const skip  = (page - 1) * limit;
   const [data, total] = await Promise.all([
-    usuarioRepo.findAll({ skip, take: limit, rol, activo }),
-    usuarioRepo.count({ rol, activo }),
+    usuarioRepo.findAll({ skip, take: limit, rol, estado }),
+    usuarioRepo.count({ rol, estado }),
   ]);
   return { data, total, page, totalPages: Math.ceil(total / limit) };
 };
@@ -25,8 +25,8 @@ const getById = async (id) => {
 };
 
 const create = async (data) => {
-  const existe = await usuarioRepo.findByEmail(data.email);
-  if (existe) throw new AppError('El email ya está registrado.', 409, 'DUPLICATE_EMAIL');
+  const existe = await usuarioRepo.findByUsername(data.username);
+  if (existe) throw new AppError('El username ya está registrado.', 409, 'DUPLICATE_USERNAME');
 
   const passwordHash = await authService.hashPassword(data.password);
   return usuarioRepo.create({ ...data, passwordHash, password: undefined });
