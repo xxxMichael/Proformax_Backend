@@ -41,11 +41,12 @@ const update = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-const deactivate = async (req, res, next) => {
+const changeStatus = async (req, res, next) => {
   try {
-    const data = await usuarioService.deactivate(req.params.id, req.user.id);
-    return res.status(200).json({ success: true, data, message: 'Usuario desactivado.' });
+    const data = await usuarioService.changeStatus(req.params.id, req.body.estado, req.user.id);
+    const message = req.body.estado ? 'Usuario activado.' : 'Usuario desactivado.';
+    return res.status(200).json({ success: true, data, message });
   } catch (err) { next(err); }
 };
 
-module.exports = { getAll, getById, create, update, deactivate };
+module.exports = { getAll, getById, create, update, changeStatus };

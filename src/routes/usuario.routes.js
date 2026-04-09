@@ -4,7 +4,7 @@
  * GET    /api/v1/usuarios/:id
  * POST   /api/v1/usuarios
  * PUT    /api/v1/usuarios/:id
- * DELETE /api/v1/usuarios/:id
+ * PATCH  /api/v1/usuarios/:id/estado
  */
 
 'use strict';
@@ -26,10 +26,15 @@ const createValidation = [
   validate,
 ];
 
+const statusValidation = [
+  body('estado').isBoolean().withMessage('El campo estado es requerido y debe ser booleano.'),
+  validate,
+];
+
 router.get('/',     authorize('ADMIN'), usuarioController.getAll);
 router.get('/:id',  authorize('ADMIN'), usuarioController.getById);
 router.post('/',    authorize('ADMIN'), createValidation, usuarioController.create);
 router.put('/:id',  authorize('ADMIN'), usuarioController.update);
-router.delete('/:id', authorize('ADMIN'), usuarioController.deactivate);
+router.patch('/:id/estado', authorize('ADMIN'), statusValidation, usuarioController.changeStatus);
 
 module.exports = router;
