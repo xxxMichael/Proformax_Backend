@@ -161,7 +161,7 @@ const generateProformaHTML = (proforma) => {
       <h3>Información de la Proforma</h3>
       <p><strong>Fecha de Emisión:</strong> ${formatDate(proforma.fechaEmision)}</p>
       <p><strong>Válida hasta:</strong> ${formatDate(proforma.fechaVigencia)}</p>
-      <p><strong>Vendedor:</strong> ${proforma.usuario.nombre} ${proforma.usuario.apellido}</p>
+      <p><strong>Vendedor:</strong> ${proforma.usuario.username}</p>
       ${proforma.observaciones ? `<p><strong>Observaciones:</strong> ${proforma.observaciones}</p>` : ''}
     </div>
   </div>

@@ -15,6 +15,7 @@ const rateLimit    = require('express-rate-limit');
 const logger       = require('./config/logger');
 const errorHandler = require('./middlewares/errorHandler');
 const routes       = require('./routes');
+const setupSwagger = require('./config/swagger');
 
 const app = express();
 
@@ -23,8 +24,9 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc:  ["'self'"],
-      styleSrc:   ["'self'"],
+      scriptSrc:  ["'self'", "'unsafe-inline'"],
+      styleSrc:   ["'self'", "'unsafe-inline'"],
+      imgSrc:     ["'self'", 'data:'],
     },
   },
 }));
@@ -68,6 +70,9 @@ app.use(compression());
 app.use(morgan('combined', {
   stream: { write: (msg) => logger.http(msg.trim()) },
 }));
+
+// ── Swagger/OpenAPI ───────────────────────────────────────────────────────
+setupSwagger(app);
 
 // ── Rutas ──────────────────────────────────────────────────────────────────
 app.use('/api/v1', routes);

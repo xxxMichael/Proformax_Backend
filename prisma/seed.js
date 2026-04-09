@@ -37,17 +37,16 @@ async function main() {
   const passwordHash = await bcrypt.hash('Admin@1234', 12);
 
   await prisma.usuario.upsert({
-    where:  { email: 'admin@proformax.com' },
+    where:  { username: 'admin' },
     update: {},
     create: {
-      nombre:       'Administrador',
-      apellido:     'Sistema',
-      email:        'admin@proformax.com',
+      username:     'admin',
       passwordHash,
       rol:          'ADMIN',
+      estado:       true,
     },
   });
-  console.log('✅ Usuario administrador creado (admin@proformax.com / Admin@1234).');
+  console.log('✅ Usuario administrador creado (admin / Admin@1234).');
 
   // ── Categorías de productos ─────────────────────────────────────────────────
   const categorias = [

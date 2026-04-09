@@ -8,7 +8,7 @@ const prisma = require('../config/database');
 
 const DETAIL_INCLUDE = {
   cliente:  { select: { id: true, nombres: true, apellidos: true, email: true, ruc: true, cedula: true } },
-  usuario:  { select: { id: true, nombre: true, apellido: true, email: true } },
+  usuario:  { select: { id: true, username: true } },
   detalles: {
     include: { producto: { select: { id: true, nombre: true, codigo: true, unidadMedida: true } } },
   },
@@ -30,7 +30,7 @@ const findAll = ({ skip = 0, take = 20, estado, usuarioId, clienteId, search } =
     },
     include: {
       cliente: { select: { id: true, nombres: true, apellidos: true } },
-      usuario: { select: { id: true, nombre: true, apellido: true } },
+      usuario: { select: { id: true, username: true } },
     },
     orderBy: { creadoEn: 'desc' },
     skip,

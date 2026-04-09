@@ -1,15 +1,13 @@
 /**
  * AuthService - Lógica de negocio de autenticación
- * Gestión de login, tokens JWT y refresh tokens
+ * Gestión de login stateless con JWT
  */
 
 'use strict';
 
 const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
 const usuarioRepo = require('../repositories/usuario.repository');
-const prisma  = require('../config/database');
 const logger  = require('../config/logger');
 const { AppError } = require('../middlewares/errorHandler');
 
@@ -27,55 +25,41 @@ const generateToken = (userId, rol) =>
 /**
  * Autentica a un usuario y retorna tokens
  */
-const login = async (email, password, ip, userAgent) => {
-  const usuario = await usuarioRepo.findByEmail(email);
+const login = async (username, password, ip, _userAgent) => {
+  const usuario = await usuarioRepo.findByUsername(username);
 
-  if (!usuario || !usuario.activo) {
-    throw new AppError('Credenciales incorrectas.', 401, 'INVALID_CREDENTIALS');
+  if (!usuario || !usuario.estado) {
+    throw new AppError('Usuario no encontrado o inactivo.', 401, 'INVALID_CREDENTIALS');
   }
 
   const passwordValido = await bcrypt.compare(password, usuario.passwordHash);
   if (!passwordValido) {
-    logger.warn(`[Auth] Intento fallido para ${email} desde ${ip}`);
+    logger.warn(`[Auth] Intento fallido para ${username} desde ${ip}`);
     throw new AppError('Credenciales incorrectas.', 401, 'INVALID_CREDENTIALS');
   }
 
   const token = generateToken(usuario.id, usuario.rol);
   const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
 
-  // Guardar sesión (auditoría LOPDP)
-  await prisma.sesion.create({
-    data: {
-      usuarioId: usuario.id,
-      token,
-      ipAddress: ip,
-      userAgent,
-      expiraEn:  expiresAt,
-    },
-  });
-
-  await usuarioRepo.updateLastAccess(usuario.id);
-
-  logger.info(`[Auth] Login exitoso: ${email} desde ${ip}`);
+  logger.info(`[Auth] Login exitoso: ${username} desde ${ip}`);
 
   return {
     token,
     expiresAt,
     usuario: {
       id:       usuario.id,
-      nombre:   usuario.nombre,
-      apellido: usuario.apellido,
-      email:    usuario.email,
+      username: usuario.username,
       rol:      usuario.rol,
+      estado:   usuario.estado,
     },
   };
 };
 
 /**
- * Cierra la sesión invalidando el token
+ * Logout stateless: el cliente descarta el token.
  */
-const logout = async (token) => {
-  await prisma.sesion.deleteMany({ where: { token } });
+const logout = async (_token) => {
+  return true;
 };
 
 /**

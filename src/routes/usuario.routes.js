@@ -4,7 +4,7 @@
  * GET    /api/v1/usuarios/:id
  * POST   /api/v1/usuarios
  * PUT    /api/v1/usuarios/:id
- * DELETE /api/v1/usuarios/:id
+ * PATCH  /api/v1/usuarios/:id/estado
  */
 
 'use strict';
@@ -20,11 +20,14 @@ const router = Router();
 router.use(authenticate);
 
 const createValidation = [
-  body('nombre').notEmpty().trim().withMessage('Nombre requerido.'),
-  body('apellido').notEmpty().trim().withMessage('Apellido requerido.'),
-  body('email').isEmail().normalizeEmail().withMessage('Email válido requerido.'),
+  body('username').notEmpty().trim().isLength({ min: 3, max: 50 }).withMessage('Username válido requerido (3-50 caracteres).'),
   body('password').isLength({ min: 8 }).withMessage('Contraseña mínimo 8 caracteres.'),
   body('rol').isIn(['ADMIN', 'VENDEDOR', 'BODEGUERO']).withMessage('Rol inválido.'),
+  validate,
+];
+
+const statusValidation = [
+  body('estado').isBoolean().withMessage('El campo estado es requerido y debe ser booleano.'),
   validate,
 ];
 
@@ -32,6 +35,6 @@ router.get('/',     authorize('ADMIN'), usuarioController.getAll);
 router.get('/:id',  authorize('ADMIN'), usuarioController.getById);
 router.post('/',    authorize('ADMIN'), createValidation, usuarioController.create);
 router.put('/:id',  authorize('ADMIN'), usuarioController.update);
-router.delete('/:id', authorize('ADMIN'), usuarioController.deactivate);
+router.patch('/:id/estado', authorize('ADMIN'), statusValidation, usuarioController.changeStatus);
 
 module.exports = router;
