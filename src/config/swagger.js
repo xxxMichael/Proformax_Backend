@@ -136,11 +136,27 @@ const swaggerDefinition = {
         },
         responses: { 200: { description: 'Usuario actualizado' } },
       },
-      delete: {
+    },
+    '/usuarios/{id}/estado': {
+      patch: {
         tags: ['Usuarios'],
-        summary: 'Desactivar usuario por id',
+        summary: 'Activar o desactivar usuario por id',
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        responses: { 200: { description: 'Usuario desactivado' } },
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['estado'],
+                properties: {
+                  estado: { type: 'boolean' },
+                },
+              },
+            },
+          },
+        },
+        responses: { 200: { description: 'Estado del usuario actualizado' } },
       },
     },
     '/productos': {
