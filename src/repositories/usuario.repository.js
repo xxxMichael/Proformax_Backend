@@ -9,36 +9,32 @@ const prisma = require('../config/database');
 
 const SAFE_SELECT = {
   id:           true,
-  nombre:       true,
-  apellido:     true,
-  email:        true,
+  username:     true,
   rol:          true,
-  activo:       true,
-  telefono:     true,
+  estado:       true,
   creadoEn:     true,
   actualizadoEn: true,
-  ultimoAcceso: true,
 };
 
-const findAll = ({ skip = 0, take = 20, rol, activo } = {}) =>
+const findAll = ({ skip = 0, take = 20, rol, estado } = {}) =>
   prisma.usuario.findMany({
-    where:   { ...(rol !== undefined && { rol }), ...(activo !== undefined && { activo }) },
+    where:   { ...(rol !== undefined && { rol }), ...(estado !== undefined && { estado }) },
     select:  SAFE_SELECT,
     orderBy: { creadoEn: 'desc' },
     skip,
     take,
   });
 
-const count = ({ rol, activo } = {}) =>
+const count = ({ rol, estado } = {}) =>
   prisma.usuario.count({
-    where: { ...(rol !== undefined && { rol }), ...(activo !== undefined && { activo }) },
+    where: { ...(rol !== undefined && { rol }), ...(estado !== undefined && { estado }) },
   });
 
 const findById = (id) =>
   prisma.usuario.findUnique({ where: { id }, select: SAFE_SELECT });
 
-const findByEmail = (email) =>
-  prisma.usuario.findUnique({ where: { email } });
+const findByUsername = (username) =>
+  prisma.usuario.findUnique({ where: { username } });
 
 const create = (data) =>
   prisma.usuario.create({ data, select: SAFE_SELECT });
@@ -46,10 +42,7 @@ const create = (data) =>
 const update = (id, data) =>
   prisma.usuario.update({ where: { id }, data, select: SAFE_SELECT });
 
-const updateLastAccess = (id) =>
-  prisma.usuario.update({ where: { id }, data: { ultimoAcceso: new Date() } });
-
 const softDelete = (id) =>
-  prisma.usuario.update({ where: { id }, data: { activo: false }, select: SAFE_SELECT });
+  prisma.usuario.update({ where: { id }, data: { estado: false }, select: SAFE_SELECT });
 
-module.exports = { findAll, count, findById, findByEmail, create, update, updateLastAccess, softDelete };
+module.exports = { findAll, count, findById, findByUsername, create, update, softDelete };
