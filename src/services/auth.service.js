@@ -26,7 +26,9 @@ const generateToken = (userId, rol) =>
  * Autentica a un usuario y retorna tokens
  */
 const login = async (username, password, ip, _userAgent) => {
-  const usuario = await usuarioRepo.findByUsername(username);
+  // Normalizar a minúsculas para búsqueda case-insensitive
+  const usernameLower = username?.toLowerCase().trim();
+  const usuario = await usuarioRepo.findByUsername(usernameLower);
 
   if (!usuario || !usuario.estado) {
     throw new AppError('Usuario no encontrado o inactivo.', 401, 'INVALID_CREDENTIALS');
@@ -34,14 +36,14 @@ const login = async (username, password, ip, _userAgent) => {
 
   const passwordValido = await bcrypt.compare(password, usuario.passwordHash);
   if (!passwordValido) {
-    logger.warn(`[Auth] Intento fallido para ${username} desde ${ip}`);
+    logger.warn(`[Auth] Intento fallido para ${usernameLower} desde ${ip}`);
     throw new AppError('Credenciales incorrectas.', 401, 'INVALID_CREDENTIALS');
   }
 
   const token = generateToken(usuario.id, usuario.rol);
   const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
 
-  logger.info(`[Auth] Login exitoso: ${username} desde ${ip}`);
+  logger.info(`[Auth] Login exitoso: ${usernameLower} desde ${ip}`);
 
   return {
     token,
