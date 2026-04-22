@@ -34,7 +34,9 @@ const findById = (id) =>
   prisma.usuario.findUnique({ where: { id }, select: SAFE_SELECT });
 
 const findByUsername = (username) =>
-  prisma.usuario.findUnique({ where: { username } });
+  prisma.usuario.findFirst({
+    where: { username: { equals: username, mode: 'insensitive' } },
+  });
 
 const create = (data) =>
   prisma.usuario.create({ data, select: SAFE_SELECT });

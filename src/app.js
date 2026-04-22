@@ -12,10 +12,11 @@ const morgan       = require('morgan');
 const compression  = require('compression');
 const rateLimit    = require('express-rate-limit');
 
-const logger       = require('./config/logger');
-const errorHandler = require('./middlewares/errorHandler');
-const routes       = require('./routes');
-const setupSwagger = require('./config/swagger');
+const logger          = require('./config/logger');
+const errorHandler    = require('./middlewares/errorHandler');
+const routes          = require('./routes');
+const swaggerSpec     = require('./config/swagger');
+const swaggerUi       = require('swagger-ui-express');
 
 const app = express();
 
@@ -71,8 +72,20 @@ app.use(morgan('combined', {
   stream: { write: (msg) => logger.http(msg.trim()) },
 }));
 
-// ── Swagger/OpenAPI ───────────────────────────────────────────────────────
-setupSwagger(app);
+// ── Swagger / OpenAPI — disponible en /api/docs ───────────────────────────
+// Se deshabilita el CSP de Helmet solo para esta ruta para que la UI cargue
+app.use(
+  '/api/docs',
+  (_req, _res, next) => { _res.removeHeader('Content-Security-Policy'); next(); },
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'Proformax API Docs',
+    swaggerOptions:  { persistAuthorization: true },
+  })
+);
+
+// Endpoint para descargar el spec en JSON
+app.get('/api/docs.json', (_req, res) => res.json(swaggerSpec));
 
 // ── Rutas ──────────────────────────────────────────────────────────────────
 app.use('/api/v1', routes);

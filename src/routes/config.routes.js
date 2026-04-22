@@ -1,51 +1,128 @@
 /**
- * Rutas de Configuración de Empresa (IVA, datos corporativos)
- * Administración y Seguridad - Configuración de datos de empresa
+ * Rutas de Configuración de Empresa
+ * Tabla: configuracion_empresa — registro único (id = 1)
+ *
+ * @swagger
+ * tags:
+ *   name: Configuración
+ *   description: Configuración de la empresa (datos, IVA). Registro único.
  */
+
 'use strict';
+
 const { Router } = require('express');
-const prisma     = require('../config/database');
-const { authenticate, authorize } = require('../middlewares/auth');
+const { body }   = require('express-validator');
+
+const configEmpresaController         = require('../controllers/configEmpresa.controller');
+const { authenticate, authorize }     = require('../middlewares/auth');
+const { validate }                    = require('../middlewares/validate');
+
 const router = Router();
 router.use(authenticate);
 
-// Obtener toda la configuración
-router.get('/', async (_req, res, next) => {
-  try {
-    const data = await prisma.configuracionEmpresa.findMany({ orderBy: { clave: 'asc' } });
-    // Convertir array a objeto clave:valor para fácil uso en frontend
-    const config = data.reduce((acc, item) => ({ ...acc, [item.clave]: item.valor }), {});
-    return res.status(200).json({ success: true, data: config });
-  } catch (err) { next(err); }
-});
+const patchRules = [
+  body('ruc').optional().trim().notEmpty().withMessage('El RUC no puede estar vacío.').isLength({ max: 20 }),
+  body('razonSocial').optional().trim().notEmpty().withMessage('La razón social no puede estar vacía.').isLength({ max: 150 }),
+  body('direccion').optional({ nullable: true, checkFalsy: true }).isString(),
+  body('telefono').optional({ nullable: true, checkFalsy: true }).isLength({ max: 20 }),
+  body('email').optional({ nullable: true, checkFalsy: true }).isEmail().isLength({ max: 100 }),
+  body('porcentajeIvaVigente').optional().isFloat({ min: 0, max: 100 })
+    .withMessage('El porcentaje de IVA debe estar entre 0 y 100.'),
+  validate,
+];
 
-// Actualizar una clave de configuración
-router.put('/:clave', authorize('ADMIN'), async (req, res, next) => {
-  try {
-    const { valor, descripcion } = req.body;
-    const data = await prisma.configuracionEmpresa.upsert({
-      where:  { clave: req.params.clave },
-      update: { valor, ...(descripcion && { descripcion }) },
-      create: { clave: req.params.clave, valor, descripcion },
-    });
-    return res.status(200).json({ success: true, data, message: 'Configuración actualizada.' });
-  } catch (err) { next(err); }
-});
+/**
+ * @swagger
+ * /config:
+ *   get:
+ *     tags: [Configuración]
+ *     summary: Obtener configuración de empresa
+ *     description: >
+ *       Devuelve los datos de la empresa (RUC, razón social, IVA vigente, etc.).
+ *       Disponible para cualquier usuario autenticado ya que se necesita para
+ *       calcular IVA en proformas y mostrar datos en PDFs.
+ *     responses:
+ *       200:
+ *         description: Configuración actual de la empresa
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   $ref: '#/components/schemas/ConfigEmpresa'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get('/', configEmpresaController.get);
 
-// Actualización masiva de configuración
-router.post('/bulk', authorize('ADMIN'), async (req, res, next) => {
-  try {
-    const { config } = req.body; // { clave: valor, ... }
-    const operations = Object.entries(config).map(([clave, valor]) =>
-      prisma.configuracionEmpresa.upsert({
-        where:  { clave },
-        update: { valor: String(valor) },
-        create: { clave, valor: String(valor) },
-      })
-    );
-    await prisma.$transaction(operations);
-    return res.status(200).json({ success: true, message: 'Configuración actualizada exitosamente.' });
-  } catch (err) { next(err); }
-});
+/**
+ * @swagger
+ * /config:
+ *   patch:
+ *     tags: [Configuración]
+ *     summary: Actualizar configuración de empresa (parcial)
+ *     description: >
+ *       Solo ADMIN. Enviar únicamente los campos a modificar.
+ *       `porcentajeIvaVigente` es el porcentaje (ej. 15 para 15%, no 0.15).
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ConfigEmpresaUpdate'
+ *           examples:
+ *             cambioIVA:
+ *               summary: Solo actualizar el IVA
+ *               value: { porcentajeIvaVigente: 15.00 }
+ *             datosCompletos:
+ *               summary: Actualizar datos completos
+ *               value:
+ *                 ruc: "1234567890001"
+ *                 razonSocial: "Arte Parquet G&G"
+ *                 direccion: "Av. Principal 123, Quito"
+ *                 telefono: "+593 99 999 9999"
+ *                 email: "info@arteparquet.com"
+ *                 porcentajeIvaVigente: 15.00
+ *     responses:
+ *       200:
+ *         description: Configuración actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   $ref: '#/components/schemas/ConfigEmpresa'
+ *                 message: { type: string }
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       422:
+ *         $ref: '#/components/responses/ValidationError'
+ */
+router.patch('/', authorize('ADMIN'), patchRules, configEmpresaController.update);
+
+/**
+ * @swagger
+ * /config:
+ *   put:
+ *     tags: [Configuración]
+ *     summary: Actualizar configuración de empresa (alias de PATCH)
+ *     description: Idéntico a PATCH. Incluido por compatibilidad.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ConfigEmpresaUpdate'
+ *     responses:
+ *       200:
+ *         description: Configuración actualizada
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+router.put('/', authorize('ADMIN'), patchRules, configEmpresaController.update);
 
 module.exports = router;
