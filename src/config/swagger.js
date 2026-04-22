@@ -1,419 +1,329 @@
 /**
- * Configuracion de Swagger/OpenAPI
+ * swagger.js — Configuración de OpenAPI 3.0 para Proformax API
+ * Documentación disponible en /api/docs
  */
 
 'use strict';
 
 const swaggerJsdoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
 
-const swaggerDefinition = {
-  openapi: '3.0.3',
-  info: {
-    title: 'Proformax API',
-    version: '1.0.0',
-    description: 'Documentacion interactiva para visualizar y testear endpoints de Proformax.',
-  },
-  servers: [
-    {
-      url: '/api/v1',
-      description: 'Servidor API v1',
+const options = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title:       'Proformax API',
+      version:     '1.0.0',
+      description: 'API REST para el sistema de gestión de proformas de Arte Parquet G&G. ' +
+                   'Proporciona endpoints para autenticación, clientes, productos, proveedores, ' +
+                   'proformas, facturas con Azure AI y configuración de empresa.',
+      contact: {
+        name:  'Arte Parquet G&G',
+        email: 'info@arteparquet.com',
+      },
     },
+    servers: [
+      { url: '/api/v1', description: 'API v1' },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type:         'http',
+          scheme:       'bearer',
+          bearerFormat: 'JWT',
+          description:  'Token JWT obtenido en POST /auth/login',
+        },
+      },
+      // ── Schemas reutilizables ──────────────────────────────────────────────
+      schemas: {
+
+        // ─── Respuestas genéricas ──────────────────────────────────────────
+        SuccessResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: true },
+            message: { type: 'string'  },
+          },
+        },
+        ErrorResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: false },
+            message: { type: 'string',  example: 'Mensaje de error descriptivo.' },
+            code:    { type: 'string',  example: 'NOT_FOUND' },
+          },
+        },
+        PaginationMeta: {
+          type: 'object',
+          properties: {
+            total:      { type: 'integer', example: 100 },
+            page:       { type: 'integer', example: 1   },
+            limit:      { type: 'integer', example: 20  },
+            totalPages: { type: 'integer', example: 5   },
+          },
+        },
+
+        // ─── Auth ──────────────────────────────────────────────────────────
+        LoginRequest: {
+          type: 'object',
+          required: ['username', 'password'],
+          properties: {
+            username: { type: 'string', example: 'admin' },
+            password: { type: 'string', example: 'secret123' },
+          },
+        },
+        LoginResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: true },
+            data: {
+              type: 'object',
+              properties: {
+                token:     { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5...' },
+                expiresAt: { type: 'string', format: 'date-time' },
+                usuario: { $ref: '#/components/schemas/UsuarioPublico' },
+              },
+            },
+          },
+        },
+
+        // ─── Usuario ───────────────────────────────────────────────────────
+        UsuarioPublico: {
+          type: 'object',
+          properties: {
+            id:            { type: 'integer', example: 1 },
+            username:      { type: 'string',  example: 'admin' },
+            rol:           { type: 'string',  enum: ['ADMIN', 'vendedor', 'bodeguero'], example: 'ADMIN' },
+            estado:        { type: 'boolean', example: true },
+            creadoEn:      { type: 'string',  format: 'date-time' },
+            actualizadoEn: { type: 'string',  format: 'date-time' },
+          },
+        },
+        UsuarioCreate: {
+          type: 'object',
+          required: ['username', 'password', 'rol'],
+          properties: {
+            username: { type: 'string', example: 'vendedor01' },
+            password: { type: 'string', example: 'Passw0rd!' },
+            rol:      { type: 'string', enum: ['ADMIN', 'vendedor', 'bodeguero'] },
+          },
+        },
+
+        // ─── Cliente ───────────────────────────────────────────────────────
+        Cliente: {
+          type: 'object',
+          properties: {
+            id:                   { type: 'integer', example: 1 },
+            identificacion:       { type: 'string',  example: '0912345678001' },
+            nombres:              { type: 'string',  example: 'Juan Carlos' },
+            apellidosRazonSocial: { type: 'string',  example: 'Pérez Torres' },
+            email:                { type: 'string',  format: 'email', nullable: true },
+            telefono:             { type: 'string',  nullable: true, example: '+593 99 999 9999' },
+            direccion:            { type: 'string',  nullable: true },
+            creadoEn:             { type: 'string',  format: 'date-time' },
+            actualizadoEn:        { type: 'string',  format: 'date-time' },
+          },
+        },
+        ClienteCreate: {
+          type: 'object',
+          required: ['identificacion', 'nombres', 'apellidosRazonSocial'],
+          properties: {
+            identificacion:       { type: 'string', maxLength: 20, example: '0912345678001' },
+            nombres:              { type: 'string', maxLength: 100 },
+            apellidosRazonSocial: { type: 'string', maxLength: 150 },
+            email:                { type: 'string', format: 'email',  nullable: true },
+            telefono:             { type: 'string', maxLength: 20,    nullable: true },
+            direccion:            { type: 'string', nullable: true },
+          },
+        },
+        ClienteUpdate: {
+          type: 'object',
+          properties: {
+            identificacion:       { type: 'string', maxLength: 20 },
+            nombres:              { type: 'string', maxLength: 100 },
+            apellidosRazonSocial: { type: 'string', maxLength: 150 },
+            email:                { type: 'string', format: 'email', nullable: true },
+            telefono:             { type: 'string', maxLength: 20,   nullable: true },
+            direccion:            { type: 'string', nullable: true },
+          },
+        },
+
+        // ─── Producto ──────────────────────────────────────────────────────
+        Producto: {
+          type: 'object',
+          properties: {
+            id:          { type: 'integer', example: 1 },
+            codigo:      { type: 'string',  example: 'PROD-001' },
+            nombre:      { type: 'string',  example: 'Piso de madera roble 90cm' },
+            descripcion: { type: 'string',  nullable: true },
+            tipo:        { type: 'string',  enum: ['producto', 'servicio', 'material', 'acabado', 'accesorio'] },
+            precioBase:  { type: 'number',  format: 'decimal', example: 45.250000, description: '6 decimales' },
+            stockActual: { type: 'integer', example: 120 },
+            aplicaIva:   { type: 'boolean', example: true },
+            estado:      { type: 'boolean', example: true },
+          },
+        },
+        ProductoCreate: {
+          type: 'object',
+          required: ['codigo', 'nombre', 'tipo', 'precioBase'],
+          properties: {
+            codigo:      { type: 'string',  maxLength: 50 },
+            nombre:      { type: 'string',  maxLength: 150 },
+            descripcion: { type: 'string',  nullable: true },
+            tipo:        { type: 'string',  enum: ['producto', 'servicio', 'material', 'acabado', 'accesorio'] },
+            precioBase:  { type: 'number',  example: 45.25 },
+            stockActual: { type: 'integer', default: 0 },
+            aplicaIva:   { type: 'boolean', default: true },
+            estado:      { type: 'boolean', default: true },
+          },
+        },
+
+        // ─── Proveedor ─────────────────────────────────────────────────────
+        Proveedor: {
+          type: 'object',
+          properties: {
+            id:              { type: 'integer', example: 1 },
+            identificacion:  { type: 'string',  example: '0912345678001' },
+            razonSocial:     { type: 'string',  example: 'Maderas del Sur S.A.' },
+            nombreComercial: { type: 'string',  nullable: true },
+            direccion:       { type: 'string',  nullable: true },
+            telefono:        { type: 'string',  nullable: true },
+            email:           { type: 'string',  format: 'email', nullable: true },
+            estado:          { type: 'boolean', example: true },
+            creadoEn:        { type: 'string',  format: 'date-time' },
+            actualizadoEn:   { type: 'string',  format: 'date-time' },
+          },
+        },
+        ProveedorCreate: {
+          type: 'object',
+          required: ['identificacion', 'razonSocial'],
+          properties: {
+            identificacion:  { type: 'string', maxLength: 20 },
+            razonSocial:     { type: 'string', maxLength: 150 },
+            nombreComercial: { type: 'string', maxLength: 150, nullable: true },
+            direccion:       { type: 'string', nullable: true },
+            telefono:        { type: 'string', maxLength: 20, nullable: true },
+            email:           { type: 'string', format: 'email', nullable: true },
+            estado:          { type: 'boolean', default: true },
+          },
+        },
+
+        // ─── ConfiguracionEmpresa ──────────────────────────────────────────
+        ConfigEmpresa: {
+          type: 'object',
+          properties: {
+            id:                   { type: 'integer', example: 1 },
+            ruc:                  { type: 'string',  example: '1234567890001' },
+            razonSocial:          { type: 'string',  example: 'Arte Parquet G&G' },
+            direccion:            { type: 'string',  nullable: true },
+            telefono:             { type: 'string',  nullable: true },
+            email:                { type: 'string',  format: 'email', nullable: true },
+            porcentajeIvaVigente: { type: 'number',  example: 15.00, description: 'Porcentaje IVA vigente (0-100)' },
+          },
+        },
+        ConfigEmpresaUpdate: {
+          type: 'object',
+          properties: {
+            ruc:                  { type: 'string', maxLength: 20 },
+            razonSocial:          { type: 'string', maxLength: 150 },
+            direccion:            { type: 'string', nullable: true },
+            telefono:             { type: 'string', maxLength: 20, nullable: true },
+            email:                { type: 'string', format: 'email', nullable: true },
+            porcentajeIvaVigente: { type: 'number', minimum: 0, maximum: 100 },
+          },
+        },
+
+        // ─── Proforma ─────────────────────────────────────────────────────
+        DetalleProformaItem: {
+          type: 'object',
+          properties: {
+            id:                 { type: 'integer' },
+            productoServicioId: { type: 'integer' },
+            cantidad:           { type: 'number',  example: 10 },
+            precioUnitario:     { type: 'number',  example: 45.250000, description: '6 decimales' },
+            subtotal:           { type: 'number',  example: 452.500000 },
+          },
+        },
+        Proforma: {
+          type: 'object',
+          properties: {
+            id:                  { type: 'integer' },
+            numeroProforma:      { type: 'string',  example: 'PRO-2024-00001' },
+            clienteId:           { type: 'integer' },
+            usuarioId:           { type: 'integer' },
+            fechaEmision:        { type: 'string',  format: 'date' },
+            fechaValidez:        { type: 'string',  format: 'date' },
+            subtotalSinIva:      { type: 'number' },
+            porcentajeDescuento: { type: 'number' },
+            totalDescuento:      { type: 'number' },
+            totalIva:            { type: 'number' },
+            totalFinal:          { type: 'number' },
+            estado:              { type: 'string',  enum: ['EMITIDA', 'ACEPTADA', 'ANULADA'] },
+            observaciones:       { type: 'string',  nullable: true },
+            creadoEn:            { type: 'string',  format: 'date-time' },
+          },
+        },
+      },
+      // ── Parámetros reutilizables ───────────────────────────────────────────
+      parameters: {
+        pageParam: {
+          in:          'query',
+          name:        'page',
+          schema:      { type: 'integer', default: 1, minimum: 1 },
+          description: 'Número de página',
+        },
+        limitParam: {
+          in:          'query',
+          name:        'limit',
+          schema:      { type: 'integer', default: 20, minimum: 1, maximum: 100 },
+          description: 'Registros por página',
+        },
+        searchParam: {
+          in:          'query',
+          name:        'search',
+          schema:      { type: 'string'  },
+          description: 'Texto de búsqueda',
+        },
+        idParam: {
+          in:       'path',
+          name:     'id',
+          required: true,
+          schema:   { type: 'integer' },
+          description: 'ID del recurso',
+        },
+      },
+      // ── Respuestas comunes ─────────────────────────────────────────────────
+      responses: {
+        Unauthorized: {
+          description: '401 — Token ausente o inválido',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+        },
+        Forbidden: {
+          description: '403 — Sin permisos para este recurso',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+        },
+        NotFound: {
+          description: '404 — Recurso no encontrado',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+        },
+        Conflict: {
+          description: '409 — Conflicto de unicidad o integridad referencial',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+        },
+        ValidationError: {
+          description: '422 — Error de validación de campos',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+        },
+      },
+    },
+    security: [{ bearerAuth: [] }],
+  },
+  // Archivos donde buscar anotaciones @swagger / JSDoc
+  apis: [
+    './src/routes/*.js',
+    './src/controllers/*.js',
   ],
-  components: {
-    securitySchemes: {
-      bearerAuth: {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-      },
-    },
-  },
-  security: [
-    {
-      bearerAuth: [],
-    },
-  ],
-  paths: {
-    '/health': {
-      get: {
-        tags: ['Sistema'],
-        summary: 'Health check del servicio',
-        security: [],
-        responses: {
-          200: { description: 'Servicio operativo' },
-        },
-      },
-    },
-    '/auth/login': {
-      post: {
-        tags: ['Auth'],
-        summary: 'Iniciar sesion',
-        security: [],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['username', 'password'],
-                properties: {
-                  username: { type: 'string' },
-                  password: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
-        responses: {
-          200: { description: 'Sesion iniciada correctamente' },
-          401: { description: 'Credenciales invalidas' },
-        },
-      },
-    },
-    '/auth/logout': {
-      post: {
-        tags: ['Auth'],
-        summary: 'Cerrar sesion',
-        responses: {
-          200: { description: 'Sesion cerrada' },
-          401: { description: 'No autorizado' },
-        },
-      },
-    },
-    '/auth/me': {
-      get: {
-        tags: ['Auth'],
-        summary: 'Obtener usuario autenticado',
-        responses: {
-          200: { description: 'Usuario autenticado' },
-          401: { description: 'No autorizado' },
-        },
-      },
-    },
-    '/usuarios': {
-      get: {
-        tags: ['Usuarios'],
-        summary: 'Listar usuarios',
-        responses: { 200: { description: 'Listado de usuarios' } },
-      },
-      post: {
-        tags: ['Usuarios'],
-        summary: 'Crear usuario',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  username: { type: 'string' },
-                  password: { type: 'string' },
-                  rol: { type: 'string', enum: ['ADMIN', 'VENDEDOR', 'BODEGUERO'] },
-                  estado: { type: 'boolean' },
-                },
-              },
-            },
-          },
-        },
-        responses: { 201: { description: 'Usuario creado' } },
-      },
-    },
-    '/usuarios/{id}': {
-      get: {
-        tags: ['Usuarios'],
-        summary: 'Obtener usuario por id',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        responses: { 200: { description: 'Usuario encontrado' } },
-      },
-      put: {
-        tags: ['Usuarios'],
-        summary: 'Actualizar usuario por id',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 200: { description: 'Usuario actualizado' } },
-      },
-    },
-    '/usuarios/{id}/estado': {
-      patch: {
-        tags: ['Usuarios'],
-        summary: 'Activar o desactivar usuario por id',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['estado'],
-                properties: {
-                  estado: { type: 'boolean' },
-                },
-              },
-            },
-          },
-        },
-        responses: { 200: { description: 'Estado del usuario actualizado' } },
-      },
-    },
-    '/productos': {
-      get: {
-        tags: ['Productos'],
-        summary: 'Listar productos',
-        responses: { 200: { description: 'Listado de productos' } },
-      },
-      post: {
-        tags: ['Productos'],
-        summary: 'Crear producto',
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 201: { description: 'Producto creado' } },
-      },
-    },
-    '/productos/{id}': {
-      get: {
-        tags: ['Productos'],
-        summary: 'Obtener producto por id',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        responses: { 200: { description: 'Producto encontrado' } },
-      },
-      put: {
-        tags: ['Productos'],
-        summary: 'Actualizar producto',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 200: { description: 'Producto actualizado' } },
-      },
-      delete: {
-        tags: ['Productos'],
-        summary: 'Eliminar producto',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        responses: { 200: { description: 'Producto eliminado' } },
-      },
-    },
-    '/productos/categorias/all': {
-      get: {
-        tags: ['Productos'],
-        summary: 'Listar categorias',
-        responses: { 200: { description: 'Categorias disponibles' } },
-      },
-    },
-    '/proformas': {
-      get: {
-        tags: ['Proformas'],
-        summary: 'Listar proformas',
-        responses: { 200: { description: 'Listado de proformas' } },
-      },
-      post: {
-        tags: ['Proformas'],
-        summary: 'Crear proforma',
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 201: { description: 'Proforma creada' } },
-      },
-    },
-    '/proformas/{id}': {
-      get: {
-        tags: ['Proformas'],
-        summary: 'Obtener proforma por id',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        responses: { 200: { description: 'Proforma encontrada' } },
-      },
-      put: {
-        tags: ['Proformas'],
-        summary: 'Actualizar proforma por id',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 200: { description: 'Proforma actualizada' } },
-      },
-    },
-    '/proformas/{id}/pdf': {
-      get: {
-        tags: ['Proformas'],
-        summary: 'Exportar PDF de proforma',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        responses: { 200: { description: 'PDF generado' } },
-      },
-    },
-    '/proformas/{id}/estado': {
-      patch: {
-        tags: ['Proformas'],
-        summary: 'Cambiar estado de proforma',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 200: { description: 'Estado actualizado' } },
-      },
-    },
-    '/proveedores': {
-      get: {
-        tags: ['Proveedores'],
-        summary: 'Listar proveedores',
-        responses: { 200: { description: 'Listado de proveedores' } },
-      },
-      post: {
-        tags: ['Proveedores'],
-        summary: 'Crear proveedor',
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 201: { description: 'Proveedor creado' } },
-      },
-    },
-    '/proveedores/{id}': {
-      get: {
-        tags: ['Proveedores'],
-        summary: 'Obtener proveedor por id',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        responses: { 200: { description: 'Proveedor encontrado' } },
-      },
-      put: {
-        tags: ['Proveedores'],
-        summary: 'Actualizar proveedor',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 200: { description: 'Proveedor actualizado' } },
-      },
-    },
-    '/clientes': {
-      get: {
-        tags: ['Clientes'],
-        summary: 'Listar clientes',
-        responses: { 200: { description: 'Listado de clientes' } },
-      },
-      post: {
-        tags: ['Clientes'],
-        summary: 'Crear cliente',
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 201: { description: 'Cliente creado' } },
-      },
-    },
-    '/clientes/{id}': {
-      get: {
-        tags: ['Clientes'],
-        summary: 'Obtener cliente por id',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        responses: { 200: { description: 'Cliente encontrado' } },
-      },
-      put: {
-        tags: ['Clientes'],
-        summary: 'Actualizar cliente por id',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 200: { description: 'Cliente actualizado' } },
-      },
-    },
-    '/config': {
-      get: {
-        tags: ['Configuracion'],
-        summary: 'Listar configuraciones',
-        responses: { 200: { description: 'Configuraciones actuales' } },
-      },
-    },
-    '/config/{clave}': {
-      put: {
-        tags: ['Configuracion'],
-        summary: 'Actualizar una configuracion',
-        parameters: [{ name: 'clave', in: 'path', required: true, schema: { type: 'string' } }],
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 200: { description: 'Configuracion actualizada' } },
-      },
-    },
-    '/config/bulk': {
-      post: {
-        tags: ['Configuracion'],
-        summary: 'Actualizar configuraciones en bloque',
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
-        },
-        responses: { 200: { description: 'Configuraciones actualizadas' } },
-      },
-    },
-    '/facturas/procesar': {
-      post: {
-        tags: ['Facturas'],
-        summary: 'Procesar factura con OCR',
-        requestBody: {
-          required: true,
-          content: {
-            'multipart/form-data': {
-              schema: {
-                type: 'object',
-                properties: {
-                  factura: { type: 'string', format: 'binary' },
-                },
-                required: ['factura'],
-              },
-            },
-          },
-        },
-        responses: { 200: { description: 'Factura procesada' } },
-      },
-    },
-    '/facturas': {
-      get: {
-        tags: ['Facturas'],
-        summary: 'Listar facturas',
-        responses: { 200: { description: 'Listado de facturas' } },
-      },
-    },
-    '/facturas/{id}': {
-      get: {
-        tags: ['Facturas'],
-        summary: 'Obtener factura por id',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-        responses: { 200: { description: 'Factura encontrada' } },
-      },
-    },
-  },
 };
 
-const spec = swaggerJsdoc({
-  definition: swaggerDefinition,
-  apis: [],
-});
+const swaggerSpec = swaggerJsdoc(options);
 
-const setupSwagger = (app) => {
-  app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(spec, {
-    explorer: true,
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-  }));
-
-  app.get('/api/v1/docs.json', (_req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.send(spec);
-  });
-};
-
-module.exports = setupSwagger;
+module.exports = swaggerSpec;

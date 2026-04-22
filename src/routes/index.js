@@ -1,6 +1,5 @@
 /**
  * Router principal - Proformax API v1
- * Agrega todas las rutas de los módulos
  */
 
 'use strict';
@@ -28,3 +27,4 @@ router.use('/config',      configRoutes);
 router.use('/facturas',    facturaRoutes);
 
 module.exports = router;
+
