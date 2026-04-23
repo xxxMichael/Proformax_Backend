@@ -111,7 +111,7 @@ router.get('/:id', idParam, proveedorController.getById);
  *   post:
  *     tags: [Proveedores]
  *     summary: Crear proveedor
- *     description: Requiere rol ADMIN o bodeguero.
+ *     description: Requiere rol ADMIN.
  *     requestBody:
  *       required: true
  *       content:
@@ -124,7 +124,7 @@ router.get('/:id', idParam, proveedorController.getById);
  *       409:
  *         $ref: '#/components/responses/Conflict'
  */
-router.post('/', authorize('ADMIN', 'bodeguero'), createRules, proveedorController.create);
+router.post('/', authorize('ADMIN'), createRules, proveedorController.create);
 
 /**
  * @swagger
@@ -144,7 +144,7 @@ router.post('/', authorize('ADMIN', 'bodeguero'), createRules, proveedorControll
  *       200:
  *         description: Proveedor actualizado
  */
-router.put('/:id', authorize('ADMIN', 'bodeguero'), [...idParam, ...updateRules], proveedorController.update);
+router.put('/:id', authorize('ADMIN'), [...idParam, ...updateRules], proveedorController.update);
 
 /**
  * @swagger
@@ -170,7 +170,7 @@ router.put('/:id', authorize('ADMIN', 'bodeguero'), [...idParam, ...updateRules]
  *       200:
  *         description: Proveedor actualizado parcialmente
  */
-router.patch('/:id', authorize('ADMIN', 'bodeguero'), [...idParam, ...updateRules], proveedorController.patch);
+router.patch('/:id', authorize('ADMIN'), [...idParam, ...updateRules], proveedorController.patch);
 
 /**
  * @swagger

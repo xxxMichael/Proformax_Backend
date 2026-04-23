@@ -92,7 +92,7 @@ const options = {
           properties: {
             id:            { type: 'integer', example: 1 },
             username:      { type: 'string',  example: 'admin' },
-            rol:           { type: 'string',  enum: ['ADMIN', 'vendedor', 'bodeguero'], example: 'ADMIN' },
+            rol:           { type: 'string',  enum: ['ADMIN', 'vendedor'], example: 'ADMIN' },
             estado:        { type: 'boolean', example: true },
             creadoEn:      { type: 'string',  format: 'date-time' },
             actualizadoEn: { type: 'string',  format: 'date-time' },
@@ -104,7 +104,7 @@ const options = {
           properties: {
             username: { type: 'string', example: 'vendedor01' },
             password: { type: 'string', example: 'Passw0rd!' },
-            rol:      { type: 'string', enum: ['ADMIN', 'vendedor', 'bodeguero'] },
+            rol:      { type: 'string', enum: ['ADMIN', 'vendedor'] },
           },
         },
 

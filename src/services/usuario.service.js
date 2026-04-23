@@ -34,23 +34,60 @@ const getById = async (id) => {
 };
 
 const create = async (data) => {
-  const existe = await usuarioRepo.findByUsername(data.username);
-  if (existe) throw new AppError('El username ya está registrado.', 409, 'DUPLICATE_USERNAME');
+  // Normalizar username a minúsculas (consistente con el login)
+  const username = data.username?.toLowerCase().trim();
+
+  if (!username) {
+    throw new AppError('El username es requerido.', 422, 'VALIDATION_ERROR');
+  }
+
+  const existe = await usuarioRepo.findByUsername(username);
+  if (existe) {
+    throw new AppError(
+      `El username "${username}" ya está en uso.`,
+      409, 'DUPLICATE_USERNAME'
+    );
+  }
 
   const passwordHash = await authService.hashPassword(data.password);
-  return usuarioRepo.create({ ...data, passwordHash, password: undefined });
+
+  // Construir payload limpio — nunca guardar password en texto plano
+  const payload = {
+    username,
+    passwordHash,
+    rol:    ['ADMIN', 'vendedor'].includes(data.rol) ? data.rol : 'vendedor',
+    estado: data.estado !== undefined ? Boolean(data.estado) : true,
+  };
+
+  return usuarioRepo.create(payload);
 };
 
 const update = async (id, data) => {
   const userId = toIntId(id);
   await getById(userId);
 
-  if (data.password) {
-    data.passwordHash = await authService.hashPassword(data.password);
-    delete data.password;
+  const updateData = { ...data };
+
+  // Normalizar username si se está cambiando
+  if (updateData.username) {
+    updateData.username = updateData.username.toLowerCase().trim();
+    // Verificar que no exista ya ese username en otro usuario
+    const otro = await usuarioRepo.findByUsername(updateData.username);
+    if (otro && otro.id !== userId) {
+      throw new AppError(
+        `El username "${updateData.username}" ya está en uso.`,
+        409, 'DUPLICATE_USERNAME'
+      );
+    }
   }
 
-  return usuarioRepo.update(userId, data);
+  // Hash de la nueva contraseña si se envía
+  if (updateData.password) {
+    updateData.passwordHash = await authService.hashPassword(updateData.password);
+    delete updateData.password;
+  }
+
+  return usuarioRepo.update(userId, updateData);
 };
 
 const changeStatus = async (id, estado, requesterId) => {
