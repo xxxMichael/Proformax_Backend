@@ -126,7 +126,7 @@ router.get('/:id', idParam, productoController.getById);
  *   post:
  *     tags: [Productos]
  *     summary: Crear producto
- *     description: Requiere rol ADMIN o bodeguero. precioBase acepta hasta 6 decimales.
+ *     description: Requiere rol ADMIN . precioBase acepta hasta 6 decimales.
  *     requestBody:
  *       required: true
  *       content:
@@ -141,7 +141,7 @@ router.get('/:id', idParam, productoController.getById);
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.post('/', authorize('ADMIN', 'bodeguero'), createRules, productoController.create);
+router.post('/', authorize('ADMIN'), createRules, productoController.create);
 
 /**
  * @swagger
@@ -165,7 +165,7 @@ router.post('/', authorize('ADMIN', 'bodeguero'), createRules, productoControlle
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.put('/:id', authorize('ADMIN', 'bodeguero'), [...idParam, ...updateRules], productoController.update);
+router.put('/:id', authorize('ADMIN'), [...idParam, ...updateRules], productoController.update);
 
 /**
  * @swagger
@@ -192,7 +192,7 @@ router.put('/:id', authorize('ADMIN', 'bodeguero'), [...idParam, ...updateRules]
  *       200:
  *         description: Producto actualizado parcialmente
  */
-router.patch('/:id', authorize('ADMIN', 'bodeguero'), [...idParam, ...updateRules], productoController.patch);
+router.patch('/:id', authorize('ADMIN'), [...idParam, ...updateRules], productoController.patch);
 
 /**
  * @swagger

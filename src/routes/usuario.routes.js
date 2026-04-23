@@ -33,14 +33,14 @@ const createValidation = [
   body('password')
     .isLength({ min: 8 }).withMessage('Contraseña mínimo 8 caracteres.'),
   body('rol')
-    .isIn(['ADMIN', 'vendedor', 'bodeguero']).withMessage('Rol inválido. Opciones: ADMIN, vendedor, bodeguero.'),
+    .isIn(['ADMIN', 'vendedor']).withMessage('Rol inválido. Opciones: ADMIN, vendedor.'),
   validate,
 ];
 
 const updateValidation = [
   body('username').optional().trim().isLength({ min: 3, max: 50 }),
   body('password').optional().isLength({ min: 8 }),
-  body('rol').optional().isIn(['ADMIN', 'vendedor', 'bodeguero']),
+  body('rol').optional().isIn(['ADMIN', 'vendedor']),
   validate,
 ];
 
@@ -65,7 +65,7 @@ const statusValidation = [
  *         name: rol
  *         schema:
  *           type: string
- *           enum: [ADMIN, vendedor, bodeguero]
+ *           enum: [ADMIN, vendedor]
  *         description: Filtrar por rol
  *       - in: query
  *         name: estado
@@ -177,7 +177,7 @@ router.post('/', authorize('ADMIN'), createValidation, usuarioController.create)
  *               password: { type: string, minLength: 8 }
  *               rol:
  *                 type: string
- *                 enum: [ADMIN, vendedor, bodeguero]
+ *                 enum: [ADMIN, vendedor]
  *     responses:
  *       200:
  *         description: Usuario actualizado

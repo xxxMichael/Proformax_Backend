@@ -204,7 +204,7 @@ router.get('/:id', idParam, facturaController.getById);
  */
 router.post(
   '/analizar',
-  authorize('ADMIN', 'bodeguero'),
+  authorize('ADMIN'),
   upload.single('factura'),
   (req, _res, next) => {
     if (!req.file) return next(new AppError('Se requiere un archivo de factura.', 400, 'MISSING_FILE'));
@@ -285,7 +285,7 @@ router.post(
  */
 router.post(
   '/confirmar',
-  authorize('ADMIN', 'bodeguero'),
+  authorize('ADMIN'),
   confirmarRules,
   facturaController.confirmar,
 );

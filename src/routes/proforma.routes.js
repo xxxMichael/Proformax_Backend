@@ -66,7 +66,7 @@ const statusValidation = [
  *     summary: Listar proformas
  *     description: >
  *       Los vendedores solo ven sus propias proformas.
- *       ADMIN y bodeguero ven todas.
+ *       ADMIN ve todas. Los vendedores solo ven las suyas.
  *     parameters:
  *       - $ref: '#/components/parameters/pageParam'
  *       - $ref: '#/components/parameters/limitParam'
