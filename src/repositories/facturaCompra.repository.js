@@ -37,6 +37,7 @@ const _getMonto = (field) => {
 
 /**
  * Extrae texto, número o fecha de un campo Azure de forma segura.
+ * Maneja strings, números, Dates y objetos monetarios { amount }.
  *
  * @param {object|null} field — Campo bruto de Azure
  * @param {*} fallback — Valor por defecto si el campo está vacío
@@ -52,6 +53,52 @@ const _getValor = (field, fallback = null) => {
   if (val instanceof Date) return val;
   // String / número
   return val ?? fallback;
+};
+
+/**
+ * Extrae el texto crudo (content) de un campo Azure.
+ *
+ * Usar para campos cuyo `.value` es un tipo complejo que el SDK no convierte
+ * automáticamente a string:
+ *   - VendorAddress  → AddressValue { streetAddress, city, state, ... }
+ *   - VendorPhoneNumber → PhoneNumberValue (objeto)
+ *   - VendorEmail    → puede venir como objeto en algunas versiones del SDK
+ *
+ * `field.content` siempre contiene el texto tal como aparece en el documento,
+ * sin importar el tipo estructurado del campo.
+ *
+ * @param {object|null} field  — Campo bruto de Azure
+ * @param {*}           fallback
+ * @returns {string|null}
+ */
+const _getContent = (field, fallback = null) => {
+  if (!field) return fallback;
+
+  // 1. Prioridad: contenido crudo del campo (texto literal del PDF)
+  if (typeof field.content === 'string' && field.content.trim()) {
+    return field.content.trim();
+  }
+
+  // 2. Si .value es string directo, usarlo
+  if (typeof field.value === 'string' && field.value.trim()) {
+    return field.value.trim();
+  }
+
+  // 3. Si .value es un AddressValue, construir string desde sus sub-campos
+  if (field.value && typeof field.value === 'object' && !Array.isArray(field.value)) {
+    const addr = field.value;
+    const partes = [
+      addr.streetAddress,
+      addr.road,
+      addr.city,
+      addr.state,
+      addr.postalCode,
+      addr.country,
+    ].filter(Boolean);
+    if (partes.length > 0) return partes.join(', ');
+  }
+
+  return fallback;
 };
 
 /**
@@ -99,11 +146,17 @@ const analyzeDocument = async (buffer) => {
 
   // ── Cabecera ──────────────────────────────────────────────────────────────
 
-  const vendorName    = _getValor(invoice.VendorName);
-  const vendorRuc     = _getValor(invoice.VendorTaxId);
-  const vendorAddress = _getValor(invoice.VendorAddress);
-  const vendorPhone   = _getValor(invoice.VendorPhoneNumber); // no siempre presente
-  const vendorEmail   = _getValor(invoice.VendorEmail);       // no siempre presente
+  const vendorName = _getValor(invoice.VendorName);
+  const vendorRuc  = _getValor(invoice.VendorTaxId);
+
+  // VendorAddress: Azure devuelve un AddressValue (objeto), NO un string.
+  // _getContent() lee .content (texto crudo del PDF) como fuente principal,
+  // con fallback a construir el string desde los sub-campos del AddressValue.
+  const vendorAddress = _getContent(invoice.VendorAddress);
+
+  // PhoneNumber y Email también pueden ser tipos estructurados en algunas versiones del SDK
+  const vendorPhone = _getContent(invoice.VendorPhoneNumber) ?? _getValor(invoice.CustomerPhoneNumber);
+  const vendorEmail = _getContent(invoice.VendorEmail)       ?? _getValor(invoice.CustomerEmail);
 
   // Número de factura — varios campos alternativos según estándar del emisor
   const numeroFactura =
@@ -165,10 +218,16 @@ const analyzeDocument = async (buffer) => {
   };
 
   logger.info(
-    `[Azure/Repository] Extracción completa — ` +
-    `vendor="${resultado.vendorName}" ruc="${resultado.vendorRuc}" ` +
-    `nro="${resultado.numeroFactura}" total=${resultado.total} ` +
-    `items=${items.length} confianza=${(confidence * 100).toFixed(0)}%`
+    '[Azure/Repository] Extracción completa:\n' +
+    `  vendor   : "${resultado.vendorName}"\n` +
+    `  ruc      : "${resultado.vendorRuc}"\n` +
+    `  direccion: "${resultado.vendorAddress}"\n` +
+    `  telefono : "${resultado.vendorPhone}"\n` +
+    `  email    : "${resultado.vendorEmail}"\n` +
+    `  nroFact  : "${resultado.numeroFactura}"\n` +
+    `  total    : ${resultado.total}\n` +
+    `  items    : ${items.length}\n` +
+    `  confianza: ${(confidence * 100).toFixed(0)}%`
   );
 
   return resultado;
