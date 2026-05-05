@@ -34,6 +34,7 @@ const createRules = [
   body('nombre').trim().notEmpty().withMessage('El nombre es requerido.').isLength({ max: 150 }),
   body('descripcion').optional({ nullable: true, checkFalsy: true }).isString(),
   body('tipo').trim().notEmpty().withMessage('El tipo es requerido.')
+    .customSanitizer(val => typeof val === 'string' ? val.toLowerCase() : val)
     .isIn(TIPOS_VALIDOS).withMessage(`Tipo inválido. Opciones: ${TIPOS_VALIDOS.join(', ')}.`),
   body('precioBase').isFloat({ gt: 0 }).withMessage('El precio base debe ser mayor a 0.'),
   body('stockActual').optional().isInt({ min: 0 }),
@@ -45,7 +46,10 @@ const createRules = [
 const updateRules = [
   body('codigo').optional().trim().notEmpty().isLength({ max: 50 }),
   body('nombre').optional().trim().notEmpty().isLength({ max: 150 }),
-  body('tipo').optional().isIn(TIPOS_VALIDOS),
+  body('tipo').optional()
+    .customSanitizer(val => typeof val === 'string' ? val.toLowerCase() : val)
+    .isIn(TIPOS_VALIDOS),
+  body('descripcion').optional({ nullable: true, checkFalsy: true }).isString(),
   body('precioBase').optional().isFloat({ gt: 0 }),
   body('stockActual').optional().isInt({ min: 0 }),
   body('aplicaIva').optional().isBoolean(),

@@ -10,13 +10,10 @@ const prisma       = require('../config/database');
 const { AppError } = require('../middlewares/errorHandler');
 const logger       = require('../config/logger');
 
-// Transiciones válidas de estado
 const TRANSITIONS = {
-  BORRADOR: ['EMITIDA', 'RECHAZADA'],
-  EMITIDA:  ['ACEPTADA', 'RECHAZADA', 'EXPIRADA'],
+  EMITIDA:  ['ACEPTADA', 'ANULADA'],
   ACEPTADA: [],
-  RECHAZADA: [],
-  EXPIRADA:  [],
+  ANULADA:  [],
 };
 
 /**
@@ -27,12 +24,12 @@ const generateNumero = async () => {
   const prefix = `PRF-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-`;
 
   const last = await prisma.proforma.findFirst({
-    where:   { numero: { startsWith: prefix } },
-    orderBy: { numero: 'desc' },
+    where:   { numeroProforma: { startsWith: prefix } },
+    orderBy: { numeroProforma: 'desc' },
   });
 
   const seq = last
-    ? String(parseInt(last.numero.split('-').pop(), 10) + 1).padStart(4, '0')
+    ? String(parseInt(last.numeroProforma.split('-').pop(), 10) + 1).padStart(4, '0')
     : '0001';
 
   return `${prefix}${seq}`;
@@ -47,8 +44,9 @@ const calcularTotales = (detalles, tasaIva = 0.15, descuentoGlobal = 0) => {
 
   detalles.forEach((d) => {
     const linea = d.cantidad * d.precioUnitario * (1 - (d.descuento || 0) / 100);
-    if (d.aplicaIva) subtotalGravado += linea;
-    else             subtotalExento  += linea;
+    const aplicaIva = d.aplicaIva !== undefined ? d.aplicaIva : true;
+    if (aplicaIva) subtotalGravado += linea;
+    else           subtotalExento  += linea;
   });
 
   const subtotal  = subtotalGravado + subtotalExento - descuentoGlobal;
@@ -82,31 +80,31 @@ const getById = async (id) => {
 };
 
 const create = async (body, usuarioId) => {
-  const { detalles, descuento = 0, fechaVigencia, clienteId, observaciones } = body;
+  const { detalles, porcentajeDescuento = 0, fechaValidez, clienteId, observaciones } = body;
 
   if (!detalles?.length) throw new AppError('La proforma debe tener al menos un ítem.', 400, 'EMPTY_DETAILS');
 
-  const config    = await prisma.configuracionEmpresa.findUnique({ where: { clave: 'IVA_RATE' } });
-  const tasaIva   = parseFloat(config?.valor || '0.15');
+  const config    = await prisma.configuracionEmpresa.findFirst();
+  const tasaIva   = config?.porcentajeIvaVigente ? parseFloat(config.porcentajeIvaVigente) / 100 : 0.15;
   const numero    = await generateNumero();
-  const totales   = calcularTotales(detalles, tasaIva, descuento);
+  const totales   = calcularTotales(detalles, tasaIva, porcentajeDescuento);
 
   const proforma = await proformaRepo.create({
-    numero,
+    numeroProforma: numero,
     clienteId,
     usuarioId,
-    fechaVigencia: new Date(fechaVigencia),
-    tasaIva,
+    fechaValidez: new Date(fechaValidez),
+    subtotalSinIva: totales.subtotal,
+    porcentajeDescuento: porcentajeDescuento,
+    totalDescuento: totales.descuento,
+    totalIva: totales.valorIva,
+    totalFinal: totales.total,
     observaciones,
-    ...totales,
     detalles: {
       create: detalles.map((d) => ({
-        productoId:     d.productoId,
-        descripcion:    d.descripcion,
+        productoServicioId: d.productoServicioId,
         cantidad:       d.cantidad,
         precioUnitario: d.precioUnitario,
-        descuento:      d.descuento || 0,
-        aplicaIva:      d.aplicaIva ?? true,
         subtotal:       d.cantidad * d.precioUnitario * (1 - (d.descuento || 0) / 100),
       })),
     },
@@ -118,27 +116,29 @@ const create = async (body, usuarioId) => {
 
 const update = async (id, body, usuarioId) => {
   const proforma = await getById(id);
-  if (proforma.estado !== 'BORRADOR') throw new AppError('Solo se pueden editar proformas en estado BORRADOR.', 400, 'INVALID_STATE');
+  if (proforma.estado !== 'EMITIDA') throw new AppError('Solo se pueden editar proformas en estado EMITIDA.', 400, 'INVALID_STATE');
 
-  const { detalles, descuento = 0, ...rest } = body;
-  const config  = await prisma.configuracionEmpresa.findUnique({ where: { clave: 'IVA_RATE' } });
-  const tasaIva = parseFloat(config?.valor || '0.15');
+  const { detalles, porcentajeDescuento, fechaValidez, observaciones } = body;
+  const config  = await prisma.configuracionEmpresa.findFirst();
+  const tasaIva = config?.porcentajeIvaVigente ? parseFloat(config.porcentajeIvaVigente) / 100 : 0.15;
 
-  const totales = detalles ? calcularTotales(detalles, tasaIva, descuento) : {};
+  const totales = detalles ? calcularTotales(detalles, tasaIva, porcentajeDescuento || 0) : {};
 
   return proformaRepo.update(id, {
-    ...rest,
-    ...totales,
+    ...(observaciones !== undefined && { observaciones }),
+    ...(fechaValidez && { fechaValidez: new Date(fechaValidez) }),
+    ...(porcentajeDescuento !== undefined && { porcentajeDescuento: porcentajeDescuento }),
     ...(detalles && {
+      subtotalSinIva: totales.subtotal,
+      totalDescuento: totales.descuento,
+      totalIva: totales.valorIva,
+      totalFinal: totales.total,
       detalles: {
         deleteMany: {},
         create: detalles.map((d) => ({
-          productoId:     d.productoId,
-          descripcion:    d.descripcion,
+          productoServicioId: d.productoServicioId,
           cantidad:       d.cantidad,
           precioUnitario: d.precioUnitario,
-          descuento:      d.descuento || 0,
-          aplicaIva:      d.aplicaIva ?? true,
           subtotal:       d.cantidad * d.precioUnitario * (1 - (d.descuento || 0) / 100),
         })),
       },
@@ -158,8 +158,8 @@ const changeStatus = async (id, nuevoEstado, motivo) => {
     );
   }
 
-  const [updated] = await proformaRepo.changeStatus(id, nuevoEstado, motivo, proforma.estado);
-  logger.info(`[Proforma] ${proforma.numero}: ${proforma.estado} → ${nuevoEstado}`);
+  const updated = await proformaRepo.changeStatus(id, nuevoEstado, motivo, proforma.estado);
+  logger.info(`[Proforma] ${proforma.numeroProforma}: ${proforma.estado} → ${nuevoEstado}`);
   return updated;
 };
 
