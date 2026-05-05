@@ -31,6 +31,8 @@ const getById = async (id) => {
 };
 
 const create = async (data) => {
+  if (data.tipo) data.tipo = data.tipo.toUpperCase();
+  
   const existente = await productoRepo.findByCodigo(data.codigo);
   if (existente) {
     throw new AppError(
@@ -42,6 +44,8 @@ const create = async (data) => {
 };
 
 const update = async (id, data) => {
+  if (data.tipo) data.tipo = data.tipo.toUpperCase();
+  
   await getById(id);
 
   if (data.codigo) {
@@ -58,6 +62,8 @@ const update = async (id, data) => {
 };
 
 const patch = async (id, data) => {
+  if (data.tipo) data.tipo = data.tipo.toUpperCase();
+  
   await getById(id);
 
   if (data.codigo) {

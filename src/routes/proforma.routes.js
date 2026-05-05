@@ -48,6 +48,27 @@ const createValidation = [
   validate,
 ];
 
+const updateValidation = [
+  body('fechaValidez')
+    .optional().isISO8601().withMessage('Fecha de vigencia inválida.'),
+  body('detalles')
+    .optional().isArray({ min: 1 }).withMessage('Se requiere al menos un ítem en detalles.'),
+  body('detalles.*.productoServicioId')
+    .if(body('detalles').exists())
+    .isInt({ gt: 0 }).withMessage('productoServicioId debe ser un entero positivo.'),
+  body('detalles.*.cantidad')
+    .if(body('detalles').exists())
+    .isFloat({ gt: 0 }).withMessage('Cantidad debe ser mayor a 0.'),
+  body('detalles.*.precioUnitario')
+    .if(body('detalles').exists())
+    .isFloat({ gt: 0 }).withMessage('Precio unitario debe ser mayor a 0.'),
+  body('porcentajeDescuento')
+    .optional().isFloat({ min: 0, max: 100 }).withMessage('El descuento debe estar entre 0 y 100.'),
+  body('observaciones')
+    .optional({ nullable: true, checkFalsy: true }).isString(),
+  validate,
+];
+
 const statusValidation = [
   body('estado')
     .isIn(['EMITIDA', 'ACEPTADA', 'ANULADA']).withMessage('Estado inválido. Opciones: EMITIDA, ACEPTADA, ANULADA.'),
@@ -284,7 +305,7 @@ router.post('/', authorize('ADMIN', 'vendedor'), createValidation, proformaContr
  *         description: La proforma no puede modificarse en su estado actual
  *         $ref: '#/components/responses/Conflict'
  */
-router.put('/:id', authorize('ADMIN', 'vendedor'), idParam, proformaController.update);
+router.put('/:id', authorize('ADMIN', 'vendedor'), [...idParam, ...updateValidation], proformaController.update);
 
 /**
  * @swagger
