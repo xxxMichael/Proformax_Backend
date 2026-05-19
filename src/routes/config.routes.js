@@ -102,7 +102,7 @@ router.get('/', configEmpresaController.get);
  *       422:
  *         $ref: '#/components/responses/ValidationError'
  */
-router.patch('/', authorize('ADMIN'), patchRules, configEmpresaController.update);
+router.patch('/', authorize('ADMIN', 'vendedor'), patchRules, configEmpresaController.update);
 
 /**
  * @swagger
@@ -123,6 +123,6 @@ router.patch('/', authorize('ADMIN'), patchRules, configEmpresaController.update
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.put('/', authorize('ADMIN'), patchRules, configEmpresaController.update);
+router.put('/', authorize('ADMIN', 'vendedor'), patchRules, configEmpresaController.update);
 
 module.exports = router;

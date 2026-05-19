@@ -16,8 +16,7 @@ const logger          = require('../config/logger');
 
 const getAll = async (req, res, next) => {
   try {
-    const { page, limit, estado, clienteId, search } = req.query;
-    const usuarioId = req.user.rol === 'VENDEDOR' ? req.user.id : req.query.usuarioId;
+    const { page, limit, estado, clienteId, search, usuarioId } = req.query;
 
     const result = await proformaService.getAll({
       page:      parseInt(page)  || 1,

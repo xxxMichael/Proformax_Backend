@@ -124,7 +124,7 @@ router.get('/:id', idParam, proveedorController.getById);
  *       409:
  *         $ref: '#/components/responses/Conflict'
  */
-router.post('/', authorize('ADMIN'), createRules, proveedorController.create);
+router.post('/', authorize('ADMIN', 'vendedor'), createRules, proveedorController.create);
 
 /**
  * @swagger
@@ -144,7 +144,7 @@ router.post('/', authorize('ADMIN'), createRules, proveedorController.create);
  *       200:
  *         description: Proveedor actualizado
  */
-router.put('/:id', authorize('ADMIN'), [...idParam, ...updateRules], proveedorController.update);
+router.put('/:id', authorize('ADMIN', 'vendedor'), [...idParam, ...updateRules], proveedorController.update);
 
 /**
  * @swagger
@@ -170,7 +170,7 @@ router.put('/:id', authorize('ADMIN'), [...idParam, ...updateRules], proveedorCo
  *       200:
  *         description: Proveedor actualizado parcialmente
  */
-router.patch('/:id', authorize('ADMIN'), [...idParam, ...updateRules], proveedorController.patch);
+router.patch('/:id', authorize('ADMIN', 'vendedor'), [...idParam, ...updateRules], proveedorController.patch);
 
 /**
  * @swagger
@@ -187,6 +187,6 @@ router.patch('/:id', authorize('ADMIN'), [...idParam, ...updateRules], proveedor
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.delete('/:id', authorize('ADMIN'), idParam, proveedorController.disable);
+router.delete('/:id', authorize('ADMIN', 'vendedor'), idParam, proveedorController.disable);
 
 module.exports = router;

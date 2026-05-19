@@ -48,6 +48,21 @@ async function main() {
   });
   console.log('✅ Usuario administrador creado (admin / Admin@1234).');
 
+  // ── Usuario vendedor ────────────────────────────────────────────────────────
+  const vendedorPasswordHash = await bcrypt.hash('Vendedor@1234', 12);
+
+  await prisma.usuario.upsert({
+    where:  { username: 'vendedor01' },
+    update: {},
+    create: {
+      username:     'vendedor01',
+      passwordHash: vendedorPasswordHash,
+      rol:          'vendedor',
+      estado:       true,
+    },
+  });
+  console.log('✅ Usuario vendedor creado (vendedor01 / Vendedor@1234).');
+
   // ── Categorías de productos ─────────────────────────────────────────────────
   const categorias = [
     { nombre: 'Pisos de Madera',   descripcion: 'Tablones, parquet y laminados' },

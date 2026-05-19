@@ -145,7 +145,7 @@ router.get('/:id', idParam, productoController.getById);
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.post('/', authorize('ADMIN'), createRules, productoController.create);
+router.post('/', authorize('ADMIN', 'vendedor'), createRules, productoController.create);
 
 /**
  * @swagger
@@ -169,7 +169,7 @@ router.post('/', authorize('ADMIN'), createRules, productoController.create);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.put('/:id', authorize('ADMIN'), [...idParam, ...updateRules], productoController.update);
+router.put('/:id', authorize('ADMIN', 'vendedor'), [...idParam, ...updateRules], productoController.update);
 
 /**
  * @swagger
@@ -196,7 +196,7 @@ router.put('/:id', authorize('ADMIN'), [...idParam, ...updateRules], productoCon
  *       200:
  *         description: Producto actualizado parcialmente
  */
-router.patch('/:id', authorize('ADMIN'), [...idParam, ...updateRules], productoController.patch);
+router.patch('/:id', authorize('ADMIN', 'vendedor'), [...idParam, ...updateRules], productoController.patch);
 
 /**
  * @swagger
@@ -217,6 +217,6 @@ router.patch('/:id', authorize('ADMIN'), [...idParam, ...updateRules], productoC
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.delete('/:id', authorize('ADMIN'), idParam, productoController.disable);
+router.delete('/:id', authorize('ADMIN', 'vendedor'), idParam, productoController.disable);
 
 module.exports = router;
