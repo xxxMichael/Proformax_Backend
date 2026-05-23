@@ -94,4 +94,109 @@ router.post('/logout', authenticate, authController.logout);
  */
 router.get('/me', authenticate, authController.me);
 
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Solicitar recuperación de contraseña
+ *     description: >
+ *       Envía un correo electrónico con un enlace de recuperación al email registrado.
+ *       Por seguridad, siempre responde 200 sin revelar si el email existe.
+ *       El enlace expira en **1 hora**.
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: usuario@ejemplo.com
+ *     responses:
+ *       200:
+ *         description: Correo enviado (si el email está registrado)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 message: { type: string }
+ *       422:
+ *         $ref: '#/components/responses/ValidationError'
+ */
+router.post('/forgot-password',
+  [
+    body('email')
+      .notEmpty().withMessage('El email es requerido.')
+      .isEmail().normalizeEmail().withMessage('El email no tiene un formato válido.'),
+    validate,
+  ],
+  authController.forgotPassword
+);
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Restablecer contraseña
+ *     description: >
+ *       Establece una nueva contraseña usando el token recibido por correo.
+ *       El token es de un solo uso y expira en 1 hora.
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, password]
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Token recibido en el correo de recuperación
+ *                 example: a3f8c2...
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 description: Nueva contraseña (mínimo 8 caracteres)
+ *                 example: NuevaPass123!
+ *     responses:
+ *       200:
+ *         description: Contraseña restablecida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 message: { type: string }
+ *       400:
+ *         description: Token inválido o expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       422:
+ *         $ref: '#/components/responses/ValidationError'
+ */
+router.post('/reset-password',
+  [
+    body('token')
+      .notEmpty().withMessage('El token es requerido.')
+      .isHexadecimal().withMessage('El token no es válido.')
+      .isLength({ min: 64, max: 64 }).withMessage('El token no tiene el formato esperado.'),
+    body('password')
+      .isLength({ min: 8 }).withMessage('La nueva contraseña debe tener al menos 8 caracteres.'),
+    validate,
+  ],
+  authController.resetPassword
+);
+
 module.exports = router;
