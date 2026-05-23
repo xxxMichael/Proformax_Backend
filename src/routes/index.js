@@ -14,6 +14,7 @@ const proveedorRoutes = require('./proveedor.routes');
 const clienteRoutes   = require('./cliente.routes');
 const configRoutes    = require('./config.routes');
 const facturaRoutes   = require('./factura.routes');
+const reporteRoutes   = require('./reporte.routes');
 
 const router = Router();
 
@@ -25,6 +26,7 @@ router.use('/proveedores', proveedorRoutes);
 router.use('/clientes',    clienteRoutes);
 router.use('/config',      configRoutes);
 router.use('/facturas',    facturaRoutes);
+router.use('/reportes',    reporteRoutes);
 
 module.exports = router;
 
