@@ -34,6 +34,9 @@ const createValidation = [
     .isLength({ min: 8 }).withMessage('Contraseña mínimo 8 caracteres.'),
   body('rol')
     .isIn(['ADMIN', 'vendedor']).withMessage('Rol inválido. Opciones: ADMIN, vendedor.'),
+  body('email')
+    .optional({ nullable: true })
+    .isEmail().normalizeEmail().withMessage('El email no tiene un formato válido.'),
   validate,
 ];
 
@@ -41,6 +44,12 @@ const updateValidation = [
   body('username').optional().trim().isLength({ min: 3, max: 50 }),
   body('password').optional().isLength({ min: 8 }),
   body('rol').optional().isIn(['ADMIN', 'vendedor']),
+  body('email')
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (value === null || value === '') return true; // Permite borrar el email
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    }).withMessage('El email no tiene un formato válido.'),
   validate,
 ];
 

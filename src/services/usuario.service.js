@@ -49,6 +49,20 @@ const create = async (data) => {
     );
   }
 
+  // Validar y normalizar email si se envía
+  let email;
+  if (data.email) {
+    email = data.email.toLowerCase().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new AppError('El formato del email no es válido.', 422, 'INVALID_EMAIL');
+    }
+    const emailExiste = await usuarioRepo.findByEmail(email);
+    if (emailExiste) {
+      throw new AppError(`El email "${email}" ya está en uso.`, 409, 'DUPLICATE_EMAIL');
+    }
+  }
+
   const passwordHash = await authService.hashPassword(data.password);
 
   // Construir payload limpio — nunca guardar password en texto plano
@@ -57,6 +71,7 @@ const create = async (data) => {
     passwordHash,
     rol:    ['ADMIN', 'vendedor'].includes(data.rol) ? data.rol : 'vendedor',
     estado: data.estado !== undefined ? Boolean(data.estado) : true,
+    ...(email !== undefined && { email }),
   };
 
   return usuarioRepo.create(payload);
@@ -78,6 +93,23 @@ const update = async (id, data) => {
         `El username "${updateData.username}" ya está en uso.`,
         409, 'DUPLICATE_USERNAME'
       );
+    }
+  }
+
+  // Validar y normalizar email si se está cambiando
+  if (updateData.email !== undefined) {
+    if (updateData.email === null || updateData.email === '') {
+      updateData.email = null; // Permitir borrar el email
+    } else {
+      updateData.email = updateData.email.toLowerCase().trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(updateData.email)) {
+        throw new AppError('El formato del email no es válido.', 422, 'INVALID_EMAIL');
+      }
+      const emailExiste = await usuarioRepo.findByEmail(updateData.email);
+      if (emailExiste && emailExiste.id !== userId) {
+        throw new AppError(`El email "${updateData.email}" ya está en uso.`, 409, 'DUPLICATE_EMAIL');
+      }
     }
   }
 
