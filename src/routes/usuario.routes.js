@@ -146,6 +146,7 @@ router.get('/:id', authorize('ADMIN'), idParam, usuarioController.getById);
  *             username: vendedor01
  *             password: Passw0rd!
  *             rol: vendedor
+ *             email: vendedor01@empresa.com
  *     responses:
  *       201:
  *         description: Usuario creado exitosamente
@@ -187,6 +188,7 @@ router.post('/', authorize('ADMIN'), createValidation, usuarioController.create)
  *               rol:
  *                 type: string
  *                 enum: [ADMIN, vendedor]
+ *               email: { type: string, format: email, nullable: true }
  *     responses:
  *       200:
  *         description: Usuario actualizado
