@@ -16,12 +16,12 @@ class ProcessLifecycle {
 
   registerFatalHandlers() {
     process.on('unhandledRejection', (reason) => {
-      this.logFatal('❌ Promesa rechazada sin manejar', reason);
+      this.logFatal('Promesa rechazada sin manejar', reason);
       this.exitProcess(1);
     });
 
     process.on('uncaughtException', (err) => {
-      this.logFatal('❌ Excepción no capturada', err);
+      this.logFatal('Excepción no capturada', err);
       this.exitProcess(1);
     });
   }
