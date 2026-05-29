@@ -94,6 +94,7 @@ const options = {
             username:      { type: 'string',  example: 'admin' },
             rol:           { type: 'string',  enum: ['ADMIN', 'vendedor'], example: 'ADMIN' },
             estado:        { type: 'boolean', example: true },
+            email:         { type: 'string',  format: 'email', nullable: true, example: 'admin@empresa.com' },
             creadoEn:      { type: 'string',  format: 'date-time' },
             actualizadoEn: { type: 'string',  format: 'date-time' },
           },
@@ -105,6 +106,7 @@ const options = {
             username: { type: 'string', example: 'vendedor01' },
             password: { type: 'string', example: 'Passw0rd!' },
             rol:      { type: 'string', enum: ['ADMIN', 'vendedor'] },
+            email:    { type: 'string', format: 'email', nullable: true, example: 'vendedor01@empresa.com' },
           },
         },
 

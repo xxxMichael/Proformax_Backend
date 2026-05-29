@@ -48,7 +48,7 @@ app.use(cors({
 // ── Rate Limiting ──────────────────────────────────────────────────────────
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max:      100,
+  max:      500,
   message:  { success: false, message: 'Demasiadas peticiones. Intente más tarde.' },
   standardHeaders: true,
   legacyHeaders:   false,
@@ -57,7 +57,7 @@ app.use('/api/', limiter);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max:      10,
+  max:      500,
   message:  { success: false, message: 'Demasiados intentos de autenticación. Intente más tarde.' },
 });
 app.use('/api/v1/auth/', authLimiter);
