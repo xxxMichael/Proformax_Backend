@@ -11,6 +11,7 @@
 
 const { Router }      = require('express');
 const { body, param } = require('express-validator');
+const { validarRucEcuatoriano } = require('../utils/rucValidator');
 
 const clienteController               = require('../controllers/cliente.controller');
 const { authenticate, authorize }     = require('../middlewares/auth');
@@ -29,7 +30,16 @@ const idParam = [
 const createRules = [
   body('identificacion')
     .trim().notEmpty().withMessage('La identificación es requerida.')
-    .isLength({ max: 20 }).withMessage('La identificación no puede superar 20 caracteres.'),
+    .isLength({ max: 20 }).withMessage('La identificación no puede superar 20 caracteres.')
+    .custom((value) => {
+      if (value && value.length === 13) {
+        const result = validarRucEcuatoriano(value);
+        if (!result.valido) {
+          throw new Error(`RUC Inválido: ${result.mensaje}`);
+        }
+      }
+      return true;
+    }),
   body('nombres')
     .trim().notEmpty().withMessage('El nombre es requerido.')
     .isLength({ max: 100 }).withMessage('El nombre no puede superar 100 caracteres.'),
@@ -50,7 +60,16 @@ const createRules = [
 ];
 
 const updateRules = [
-  body('identificacion').optional().trim().notEmpty().isLength({ max: 20 }),
+  body('identificacion').optional().trim().notEmpty().isLength({ max: 20 })
+    .custom((value) => {
+      if (value && value.length === 13) {
+        const result = validarRucEcuatoriano(value);
+        if (!result.valido) {
+          throw new Error(`RUC Inválido: ${result.mensaje}`);
+        }
+      }
+      return true;
+    }),
   body('nombres').optional().trim().notEmpty().isLength({ max: 100 }),
   body('apellidosRazonSocial').optional().trim().notEmpty().isLength({ max: 150 }),
   body('email').optional({ nullable: true, checkFalsy: true }).isEmail(),

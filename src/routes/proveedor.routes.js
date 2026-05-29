@@ -12,6 +12,7 @@
 
 const { Router }      = require('express');
 const { body, param } = require('express-validator');
+const { validarRucEcuatoriano } = require('../utils/rucValidator');
 
 const proveedorController             = require('../controllers/proveedor.controller');
 const { authenticate, authorize }     = require('../middlewares/auth');
@@ -28,7 +29,16 @@ const idParam = [
 ];
 
 const createRules = [
-  body('identificacion').trim().notEmpty().withMessage('La identificación (RUC/cédula) es requerida.').isLength({ max: 20 }),
+  body('identificacion').trim().notEmpty().withMessage('La identificación (RUC/cédula) es requerida.').isLength({ max: 20 })
+    .custom((value) => {
+      if (value && value.length === 13) {
+        const result = validarRucEcuatoriano(value);
+        if (!result.valido) {
+          throw new Error(`RUC Inválido: ${result.mensaje}`);
+        }
+      }
+      return true;
+    }),
   body('razonSocial').trim().notEmpty().withMessage('La razón social es requerida.').isLength({ max: 150 }),
   body('nombreComercial').optional({ nullable: true, checkFalsy: true }).isLength({ max: 150 }),
   body('direccion').optional({ nullable: true, checkFalsy: true }).isString(),
@@ -39,7 +49,16 @@ const createRules = [
 ];
 
 const updateRules = [
-  body('identificacion').optional().trim().notEmpty().isLength({ max: 20 }),
+  body('identificacion').optional().trim().notEmpty().isLength({ max: 20 })
+    .custom((value) => {
+      if (value && value.length === 13) {
+        const result = validarRucEcuatoriano(value);
+        if (!result.valido) {
+          throw new Error(`RUC Inválido: ${result.mensaje}`);
+        }
+      }
+      return true;
+    }),
   body('razonSocial').optional().trim().notEmpty().isLength({ max: 150 }),
   body('nombreComercial').optional({ nullable: true, checkFalsy: true }).isLength({ max: 150 }),
   body('email').optional({ nullable: true, checkFalsy: true }).isEmail(),

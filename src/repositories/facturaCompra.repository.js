@@ -337,7 +337,6 @@ const findProductoParaMatch = (descripcion, codigo = null) =>
       OR: [
         ...(codigo ? [{ codigo: { equals: codigo, mode: 'insensitive' } }] : []),
         { nombre: { contains: descripcion, mode: 'insensitive' } },
-        { code:    { contains: descripcion, mode: 'insensitive' } },
       ],
     },
   });

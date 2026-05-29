@@ -31,6 +31,22 @@ const analizar = async (buffer) => {
   // 1. Extraer datos crudos del documento
   const datosExtraidos = await facturaRepo.analyzeDocument(buffer);
 
+  // 1.5 Auto-match de productos
+  if (datosExtraidos.items && datosExtraidos.items.length > 0) {
+    for (const item of datosExtraidos.items) {
+      const matchedProducto = await facturaRepo.findProductoParaMatch(
+        item.descripcion,
+        item.codigoProducto
+      );
+      if (matchedProducto) {
+        item.productoId = matchedProducto.id;
+        item.productoNombre = matchedProducto.nombre;
+      } else {
+        item.productoId = "NEW";
+      }
+    }
+  }
+
   // 2. Construir candidatos de proveedor (sin tocar BD más allá de SELECTs)
   const candidatosProveedor = await _buscarCandidatosProveedor(
     datosExtraidos.vendorRuc,
@@ -113,18 +129,33 @@ const confirmar = async ({ proveedorId, numeroFactura, fechaEmision, total, item
   const itemsReconocidos     = [];
   const itemsNoReconocidos   = [];
 
-  for (const item of items) {
+  for (const [index, item] of items.entries()) {
     let producto = null;
 
-    // Si el usuario ya asignó un productoId manualmente, usarlo directamente
-    if (item.productoId) {
+    if (item.productoId === "NEW") {
+      // Auto-crear producto en la base de datos
+      const generatedCode = item.codigoProducto || `AUTO-FAC-${Date.now().toString().slice(-6)}-${index}`;
+      producto = await prismaInstance.producto.create({
+        data: {
+          codigo: generatedCode,
+          nombre: item.descripcion ? item.descripcion.substring(0, 150) : "Sin descripción",
+          tipo: 'BIEN',
+          precioBase: parseFloat(item.precioUnitario) || 0,
+          stockActual: 0,
+          aplicaIva: true,
+          estado: true,
+        }
+      });
+      logger.info(`[FacturaService] Producto autogenerado: ${producto.codigo} - ${producto.nombre}`);
+    } else if (item.productoId) {
+      // Usar producto existente seleccionado por el usuario o pre-vinculado
       producto = await prismaInstance.producto.findUnique({
         where:  { id: parseInt(item.productoId) },
         select: { id: true, nombre: true, codigo: true },
       });
     }
 
-    // Match automático por código o descripción
+    // Match automático fallback si no se mandó ID
     if (!producto) {
       producto = await facturaRepo.findProductoParaMatch(
         item.descripcion,

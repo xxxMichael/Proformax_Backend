@@ -70,7 +70,13 @@ const confirmarRules = [
   body('items.*.totalItem')
     .optional().isFloat({ min: 0 }),
   body('items.*.productoId')
-    .optional({ nullable: true }).isInt({ gt: 0 }),
+    .optional({ nullable: true })
+    .custom((val) => {
+      if (val === "NEW") return true;
+      if (Number.isInteger(val) && val > 0) return true;
+      if (typeof val === 'string' && /^\d+$/.test(val) && parseInt(val) > 0) return true;
+      throw new Error('productoId debe ser "NEW" o un entero positivo.');
+    }),
   validate,
 ];
 
