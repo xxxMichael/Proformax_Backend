@@ -130,6 +130,18 @@ npm run dev
 GET http://localhost:3000/api/v1/health
 ```
 
+3. Swagger UI (documentacion y pruebas):
+
+```http
+GET http://localhost:3000/api/v1/docs
+```
+
+4. Especificacion OpenAPI en JSON:
+
+```http
+GET http://localhost:3000/api/v1/docs.json
+```
+
 ## Estructura principal
 
 - `src/config`: configuraciones (DB, logger, Azure)

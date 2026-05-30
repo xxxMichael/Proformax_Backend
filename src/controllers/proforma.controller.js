@@ -9,14 +9,14 @@
 'use strict';
 
 const proformaService = require('../services/proforma.service');
+const prisma          = require('../config/database');
 const puppeteer       = require('puppeteer');
 const path            = require('path');
 const logger          = require('../config/logger');
 
 const getAll = async (req, res, next) => {
   try {
-    const { page, limit, estado, clienteId, search } = req.query;
-    const usuarioId = req.user.rol === 'VENDEDOR' ? req.user.id : req.query.usuarioId;
+    const { page, limit, estado, clienteId, search, usuarioId } = req.query;
 
     const result = await proformaService.getAll({
       page:      parseInt(page)  || 1,
@@ -33,7 +33,7 @@ const getAll = async (req, res, next) => {
 
 const getById = async (req, res, next) => {
   try {
-    const data = await proformaService.getById(req.params.id);
+    const data = await proformaService.getById(parseInt(req.params.id, 10));
     return res.status(200).json({ success: true, data });
   } catch (err) { next(err); }
 };
@@ -47,7 +47,7 @@ const create = async (req, res, next) => {
 
 const update = async (req, res, next) => {
   try {
-    const data = await proformaService.update(req.params.id, req.body, req.user.id);
+    const data = await proformaService.update(parseInt(req.params.id, 10), req.body, req.user.id);
     return res.status(200).json({ success: true, data, message: 'Proforma actualizada exitosamente.' });
   } catch (err) { next(err); }
 };
@@ -55,7 +55,7 @@ const update = async (req, res, next) => {
 const changeStatus = async (req, res, next) => {
   try {
     const { estado, motivo } = req.body;
-    const data = await proformaService.changeStatus(req.params.id, estado, motivo);
+    const data = await proformaService.changeStatus(parseInt(req.params.id, 10), estado, motivo);
     return res.status(200).json({ success: true, data, message: `Estado actualizado a ${estado}.` });
   } catch (err) { next(err); }
 };
@@ -66,10 +66,11 @@ const changeStatus = async (req, res, next) => {
 const exportPdf = async (req, res, next) => {
   let browser;
   try {
-    const proforma = await proformaService.getById(req.params.id);
+    const proforma = await proformaService.getById(parseInt(req.params.id, 10));
+    const config = await prisma.configuracionEmpresa.findFirst() || {};
 
     // Generación de HTML para el PDF
-    const html = generateProformaHTML(proforma);
+    const html = generateProformaHTML(proforma, config);
 
     browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const page = await browser.newPage();
@@ -83,7 +84,7 @@ const exportPdf = async (req, res, next) => {
 
     res.set({
       'Content-Type':        'application/pdf',
-      'Content-Disposition': `attachment; filename="Proforma-${proforma.numero}.pdf"`,
+      'Content-Disposition': `attachment; filename="Proforma-${proforma.numeroProforma}.pdf"`,
       'Content-Length':      pdfBuffer.length,
     });
 
@@ -98,18 +99,22 @@ const exportPdf = async (req, res, next) => {
 /**
  * Genera el HTML de la proforma para conversión a PDF
  */
-const generateProformaHTML = (proforma) => {
+const generateProformaHTML = (proforma, config = {}) => {
+  const razonSocial = config.razonSocial || 'Arte Parquet G&G';
+  const direccion   = config.direccion || 'Quito, Ecuador';
+  const email       = config.email || 'info@arteparquet.com';
+  const telefono    = config.telefono ? ` | ${config.telefono}` : '';
+  const ruc         = config.ruc || '1234567890001';
+
   const formatMoney = (n) => `$${parseFloat(n).toFixed(2)}`;
   const formatDate  = (d) => new Date(d).toLocaleDateString('es-EC');
 
   const rows = proforma.detalles.map((d) => `
     <tr>
       <td>${d.producto?.codigo || '-'}</td>
-      <td>${d.descripcion}</td>
+      <td>${d.producto?.nombre || 'Producto sin nombre'}</td>
       <td style="text-align:center">${d.cantidad}</td>
       <td style="text-align:right">${formatMoney(d.precioUnitario)}</td>
-      <td style="text-align:center">${d.descuento}%</td>
-      <td style="text-align:center">${d.aplicaIva ? 'Sí' : 'No'}</td>
       <td style="text-align:right">${formatMoney(d.subtotal)}</td>
     </tr>`).join('');
 
@@ -118,33 +123,33 @@ const generateProformaHTML = (proforma) => {
 <head>
   <meta charset="UTF-8">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body { font-family: 'Arial', sans-serif; font-size: 12px; color: #333; }
     .header { background: #1a3a5c; color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
     .header h1 { font-size: 24px; }
     .header .proforma-num { font-size: 18px; }
     .info-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; }
     .info-box h3 { color: #1a3a5c; border-bottom: 2px solid #1a3a5c; padding-bottom: 5px; margin-bottom: 10px; }
-    table { width: 100%; border-collapse: collapse; margin: 0 20px; }
+    table { width: calc(100% - 40px); border-collapse: collapse; margin: 0 20px; }
     th { background: #1a3a5c; color: white; padding: 8px; font-size: 11px; }
     td { padding: 7px 8px; border-bottom: 1px solid #eee; }
     tr:nth-child(even) { background: #f8f9fa; }
     .totals { float: right; margin: 15px 20px; min-width: 280px; }
-    .totals table { width: 100%; }
+    .totals table { width: 100%; border-collapse: collapse; margin: 0; }
     .totals td { padding: 5px 10px; }
-    .total-row { font-weight: bold; font-size: 14px; background: #1a3a5c; color: white; }
+    .total-row { font-weight: bold; font-size: 14px; background: #1a3a5c !important; color: white !important; }
     .footer { margin-top: 40px; padding: 20px; text-align: center; color: #666; font-size: 10px; }
   </style>
 </head>
 <body>
   <div class="header">
     <div>
-      <h1>Arte Parquet G&G</h1>
-      <p>Quito, Ecuador | info@arteparquet.com</p>
+      <h1>${razonSocial}</h1>
+      <p>${direccion} | ${email}${telefono}</p>
     </div>
     <div style="text-align:right">
       <div class="proforma-num">PROFORMA</div>
-      <div style="font-size:20px; font-weight:bold">${proforma.numero}</div>
+      <div style="font-size:20px; font-weight:bold">${proforma.numeroProforma}</div>
       <div>Estado: <strong>${proforma.estado}</strong></div>
     </div>
   </div>
@@ -152,16 +157,15 @@ const generateProformaHTML = (proforma) => {
   <div class="info-section">
     <div class="info-box">
       <h3>Datos del Cliente</h3>
-      <p><strong>Nombre:</strong> ${proforma.cliente.nombres} ${proforma.cliente.apellidos || ''}</p>
-      ${proforma.cliente.ruc ? `<p><strong>RUC:</strong> ${proforma.cliente.ruc}</p>` : ''}
-      ${proforma.cliente.cedula ? `<p><strong>Cédula:</strong> ${proforma.cliente.cedula}</p>` : ''}
+      <p><strong>Nombre:</strong> ${proforma.cliente.nombres} ${proforma.cliente.apellidosRazonSocial || ''}</p>
+      ${proforma.cliente.identificacion ? `<p><strong>Identificación:</strong> ${proforma.cliente.identificacion}</p>` : ''}
       ${proforma.cliente.email ? `<p><strong>Email:</strong> ${proforma.cliente.email}</p>` : ''}
     </div>
     <div class="info-box">
       <h3>Información de la Proforma</h3>
       <p><strong>Fecha de Emisión:</strong> ${formatDate(proforma.fechaEmision)}</p>
-      <p><strong>Válida hasta:</strong> ${formatDate(proforma.fechaVigencia)}</p>
-      <p><strong>Vendedor:</strong> ${proforma.usuario.nombre} ${proforma.usuario.apellido}</p>
+      <p><strong>Válida hasta:</strong> ${formatDate(proforma.fechaValidez)}</p>
+      <p><strong>Vendedor:</strong> ${proforma.usuario.username}</p>
       ${proforma.observaciones ? `<p><strong>Observaciones:</strong> ${proforma.observaciones}</p>` : ''}
     </div>
   </div>
@@ -170,7 +174,7 @@ const generateProformaHTML = (proforma) => {
     <thead>
       <tr>
         <th>Código</th><th>Descripción</th><th>Cantidad</th>
-        <th>P. Unitario</th><th>Descuento</th><th>IVA</th><th>Subtotal</th>
+        <th>P. Unitario</th><th>Subtotal</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
@@ -178,16 +182,15 @@ const generateProformaHTML = (proforma) => {
 
   <div class="totals">
     <table>
-      <tr><td>Subtotal:</td><td style="text-align:right">${formatMoney(proforma.subtotal)}</td></tr>
-      ${parseFloat(proforma.descuento) > 0 ? `<tr><td>Descuento:</td><td style="text-align:right">-${formatMoney(proforma.descuento)}</td></tr>` : ''}
-      <tr><td>Base IVA:</td><td style="text-align:right">${formatMoney(proforma.baseIva)}</td></tr>
-      <tr><td>IVA (${(proforma.tasaIva * 100).toFixed(0)}%):</td><td style="text-align:right">${formatMoney(proforma.valorIva)}</td></tr>
-      <tr class="total-row"><td>TOTAL:</td><td style="text-align:right">${formatMoney(proforma.total)}</td></tr>
+      <tr><td>Subtotal:</td><td style="text-align:right">${formatMoney(proforma.subtotalSinIva)}</td></tr>
+      ${parseFloat(proforma.totalDescuento) > 0 ? `<tr><td>Descuento:</td><td style="text-align:right">-${formatMoney(proforma.totalDescuento)}</td></tr>` : ''}
+      <tr><td>IVA:</td><td style="text-align:right">${formatMoney(proforma.totalIva)}</td></tr>
+      <tr class="total-row"><td>TOTAL:</td><td style="text-align:right">${formatMoney(proforma.totalFinal)}</td></tr>
     </table>
   </div>
 
   <div class="footer">
-    <p>Arte Parquet G&G | RUC: 1234567890001 | Quito, Ecuador</p>
+    <p>${razonSocial} | RUC: ${ruc} | ${direccion}</p>
     <p>Este documento es una proforma y no constituye una factura. Válida por el período indicado.</p>
   </div>
 </body>

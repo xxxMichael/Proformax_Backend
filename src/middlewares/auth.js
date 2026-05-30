@@ -26,10 +26,10 @@ const authenticate = async (req, _res, next) => {
     // Verificar que el usuario aún existe y está activo
     const usuario = await prisma.usuario.findUnique({
       where:  { id: decoded.sub },
-      select: { id: true, nombre: true, apellido: true, email: true, rol: true, activo: true },
+      select: { id: true, username: true, rol: true, estado: true },
     });
 
-    if (!usuario || !usuario.activo) {
+    if (!usuario || !usuario.estado) {
       return next(new AppError('Usuario no encontrado o inactivo.', 401, 'INVALID_USER'));
     }
 

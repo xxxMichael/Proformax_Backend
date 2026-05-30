@@ -1,75 +1,71 @@
 /**
- * ProductoRepository - Capa de acceso a datos para Productos/Inventario
+ * ProductoRepository — Acceso a datos para `productos_servicios`
+ * Campos reales (Prisma): id, codigo, nombre, descripcion, tipo,
+ *   precioBase, stockActual, aplicaIva, estado
  */
 
 'use strict';
 
 const prisma = require('../config/database');
 
-const findAll = ({ skip = 0, take = 20, categoriaId, activo, search } = {}) =>
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+const buildWhere = ({ search, tipo, estado } = {}) => ({
+  ...(typeof estado === 'boolean' && { estado }),
+  ...(tipo   && { tipo: { equals: tipo, mode: 'insensitive' } }),
+  ...(search && {
+    OR: [
+      { codigo:  { contains: search, mode: 'insensitive' } },
+      { nombre:  { contains: search, mode: 'insensitive' } },
+      { descripcion: { contains: search, mode: 'insensitive' } },
+    ],
+  }),
+});
+
+/** Solo los campos permitidos del modelo */
+const sanitize = (data) => {
+  const p = {};
+  if (data.codigo       !== undefined) p.codigo       = data.codigo;
+  if (data.nombre       !== undefined) p.nombre       = data.nombre;
+  if (data.descripcion  !== undefined) p.descripcion  = data.descripcion;
+  if (data.tipo         !== undefined) p.tipo         = data.tipo;
+  if (data.precioBase   !== undefined) p.precioBase   = data.precioBase;
+  if (data.stockActual  !== undefined) p.stockActual  = data.stockActual;
+  if (data.aplicaIva    !== undefined) p.aplicaIva    = data.aplicaIva;
+  if (data.estado       !== undefined) p.estado       = data.estado;
+  return p;
+};
+
+// ── Queries ────────────────────────────────────────────────────────────────
+
+const findAll = ({ skip = 0, take = 20, search, tipo, estado } = {}) =>
   prisma.producto.findMany({
-    where: {
-      ...(categoriaId !== undefined && { categoriaId }),
-      ...(activo      !== undefined && { activo }),
-      ...(search && {
-        OR: [
-          { nombre:  { contains: search, mode: 'insensitive' } },
-          { codigo:  { contains: search, mode: 'insensitive' } },
-          { descripcion: { contains: search, mode: 'insensitive' } },
-        ],
-      }),
-    },
-    include: { categoria: { select: { id: true, nombre: true } }, proveedor: { select: { id: true, razonSocial: true } } },
+    where:   buildWhere({ search, tipo, estado }),
     orderBy: { nombre: 'asc' },
     skip,
     take,
   });
 
-const count = ({ categoriaId, activo, search } = {}) =>
-  prisma.producto.count({
-    where: {
-      ...(categoriaId !== undefined && { categoriaId }),
-      ...(activo      !== undefined && { activo }),
-      ...(search && {
-        OR: [
-          { nombre:  { contains: search, mode: 'insensitive' } },
-          { codigo:  { contains: search, mode: 'insensitive' } },
-        ],
-      }),
-    },
-  });
+const count = ({ search, tipo, estado } = {}) =>
+  prisma.producto.count({ where: buildWhere({ search, tipo, estado }) });
 
 const findById = (id) =>
-  prisma.producto.findUnique({
-    where:   { id },
-    include: { categoria: true, proveedor: true },
-  });
+  prisma.producto.findUnique({ where: { id } });
 
-const findByCodigo = (codigo) => prisma.producto.findUnique({ where: { codigo } });
+const findByCodigo = (codigo) =>
+  prisma.producto.findUnique({ where: { codigo } });
 
-const create = (data) => prisma.producto.create({ data });
+const create = (data) =>
+  prisma.producto.create({ data: sanitize(data) });
 
-const update = (id, data) => prisma.producto.update({ where: { id }, data });
+const update = (id, data) =>
+  prisma.producto.update({ where: { id }, data: sanitize(data) });
 
-const updateStock = (id, cantidad, tipo) =>
-  prisma.producto.update({
-    where: { id },
-    data:  {
-      stock: tipo === 'ENTRADA'
-        ? { increment: cantidad }
-        : { decrement: cantidad },
-    },
-  });
+const patch = (id, data) =>
+  prisma.producto.update({ where: { id }, data: sanitize(data) });
 
-const softDelete = (id) =>
-  prisma.producto.update({ where: { id }, data: { activo: false } });
+/** Desactivar lógicamente (estado = false) */
+const disable = (id) =>
+  prisma.producto.update({ where: { id }, data: { estado: false } });
 
-const findLowStock = () =>
-  prisma.producto.findMany({
-    where: {
-      activo:     true,
-      stock:      { lte: prisma.producto.fields.stockMinimo },
-    },
-  });
-
-module.exports = { findAll, count, findById, findByCodigo, create, update, updateStock, softDelete, findLowStock };
+module.exports = { findAll, count, findById, findByCodigo, create, update, patch, disable };

@@ -37,17 +37,31 @@ async function main() {
   const passwordHash = await bcrypt.hash('Admin@1234', 12);
 
   await prisma.usuario.upsert({
-    where:  { email: 'admin@proformax.com' },
+    where:  { username: 'admin' },
     update: {},
     create: {
-      nombre:       'Administrador',
-      apellido:     'Sistema',
-      email:        'admin@proformax.com',
+      username:     'admin',
       passwordHash,
       rol:          'ADMIN',
+      estado:       true,
     },
   });
-  console.log('✅ Usuario administrador creado (admin@proformax.com / Admin@1234).');
+  console.log('✅ Usuario administrador creado (admin / Admin@1234).');
+
+  // ── Usuario vendedor ────────────────────────────────────────────────────────
+  const vendedorPasswordHash = await bcrypt.hash('Vendedor@1234', 12);
+
+  await prisma.usuario.upsert({
+    where:  { username: 'vendedor01' },
+    update: {},
+    create: {
+      username:     'vendedor01',
+      passwordHash: vendedorPasswordHash,
+      rol:          'vendedor',
+      estado:       true,
+    },
+  });
+  console.log('✅ Usuario vendedor creado (vendedor01 / Vendedor@1234).');
 
   // ── Categorías de productos ─────────────────────────────────────────────────
   const categorias = [

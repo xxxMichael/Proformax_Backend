@@ -1,46 +1,211 @@
 /**
- * Rutas de Proveedores
+ * Rutas de Proveedores (CRUD completo)
+ * Tabla real: proveedores
+ *
+ * @swagger
+ * tags:
+ *   name: Proveedores
+ *   description: Gestión de proveedores
  */
+
 'use strict';
-const { Router } = require('express');
-const prisma     = require('../config/database');
-const { authenticate, authorize } = require('../middlewares/auth');
+
+const { Router }      = require('express');
+const { body, param } = require('express-validator');
+const { validarRucEcuatoriano } = require('../utils/rucValidator');
+
+const proveedorController             = require('../controllers/proveedor.controller');
+const { authenticate, authorize }     = require('../middlewares/auth');
+const { validate }                    = require('../middlewares/validate');
+
 const router = Router();
 router.use(authenticate);
 
-router.get('/', async (req, res, next) => {
-  try {
-    const { page = 1, limit = 20, search } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const where = search ? { OR: [{ razonSocial: { contains: search, mode: 'insensitive' } }, { ruc: { contains: search } }] } : {};
-    const [data, total] = await Promise.all([
-      prisma.proveedor.findMany({ where, skip, take: parseInt(limit), orderBy: { razonSocial: 'asc' } }),
-      prisma.proveedor.count({ where }),
-    ]);
-    return res.status(200).json({ success: true, data, total });
-  } catch (err) { next(err); }
-});
+// ── Validaciones ────────────────────────────────────────────────────────────
 
-router.get('/:id', async (req, res, next) => {
-  try {
-    const data = await prisma.proveedor.findUnique({ where: { id: req.params.id } });
-    if (!data) return res.status(404).json({ success: false, message: 'Proveedor no encontrado.' });
-    return res.status(200).json({ success: true, data });
-  } catch (err) { next(err); }
-});
+const idParam = [
+  param('id').isInt({ gt: 0 }).withMessage('ID debe ser un entero positivo.'),
+  validate,
+];
 
-router.post('/', authorize('ADMIN', 'BODEGUERO'), async (req, res, next) => {
-  try {
-    const data = await prisma.proveedor.create({ data: req.body });
-    return res.status(201).json({ success: true, data });
-  } catch (err) { next(err); }
-});
+const createRules = [
+  body('identificacion').trim().notEmpty().withMessage('La identificación (RUC/cédula) es requerida.').isLength({ max: 20 })
+    .custom((value) => {
+      if (value && value.length === 13) {
+        const result = validarRucEcuatoriano(value);
+        if (!result.valido) {
+          throw new Error(`RUC Inválido: ${result.mensaje}`);
+        }
+      }
+      return true;
+    }),
+  body('razonSocial').trim().notEmpty().withMessage('La razón social es requerida.').isLength({ max: 150 }),
+  body('nombreComercial').optional({ nullable: true, checkFalsy: true }).isLength({ max: 150 }),
+  body('direccion').optional({ nullable: true, checkFalsy: true }).isString(),
+  body('telefono').optional({ nullable: true, checkFalsy: true }).isLength({ max: 20 }),
+  body('email').optional({ nullable: true, checkFalsy: true }).isEmail().isLength({ max: 100 }),
+  body('estado').optional().isBoolean(),
+  validate,
+];
 
-router.put('/:id', authorize('ADMIN', 'BODEGUERO'), async (req, res, next) => {
-  try {
-    const data = await prisma.proveedor.update({ where: { id: req.params.id }, data: req.body });
-    return res.status(200).json({ success: true, data });
-  } catch (err) { next(err); }
-});
+const updateRules = [
+  body('identificacion').optional().trim().notEmpty().isLength({ max: 20 })
+    .custom((value) => {
+      if (value && value.length === 13) {
+        const result = validarRucEcuatoriano(value);
+        if (!result.valido) {
+          throw new Error(`RUC Inválido: ${result.mensaje}`);
+        }
+      }
+      return true;
+    }),
+  body('razonSocial').optional().trim().notEmpty().isLength({ max: 150 }),
+  body('nombreComercial').optional({ nullable: true, checkFalsy: true }).isLength({ max: 150 }),
+  body('email').optional({ nullable: true, checkFalsy: true }).isEmail(),
+  body('telefono').optional({ nullable: true, checkFalsy: true }).isLength({ max: 20 }),
+  body('estado').optional().isBoolean(),
+  validate,
+];
+
+// ── Endpoints ───────────────────────────────────────────────────────────────
+
+/**
+ * @swagger
+ * /proveedores:
+ *   get:
+ *     tags: [Proveedores]
+ *     summary: Listar proveedores
+ *     parameters:
+ *       - $ref: '#/components/parameters/pageParam'
+ *       - $ref: '#/components/parameters/limitParam'
+ *       - $ref: '#/components/parameters/searchParam'
+ *       - in: query
+ *         name: estado
+ *         schema: { type: boolean }
+ *         description: Filtrar por activos (true) o inactivos (false)
+ *     responses:
+ *       200:
+ *         description: Lista paginada de proveedores
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/PaginationMeta'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Proveedor'
+ */
+router.get('/', proveedorController.getAll);
+
+/**
+ * @swagger
+ * /proveedores/{id}:
+ *   get:
+ *     tags: [Proveedores]
+ *     summary: Obtener proveedor por ID
+ *     parameters:
+ *       - $ref: '#/components/parameters/idParam'
+ *     responses:
+ *       200:
+ *         description: Proveedor encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   $ref: '#/components/schemas/Proveedor'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+router.get('/:id', idParam, proveedorController.getById);
+
+/**
+ * @swagger
+ * /proveedores:
+ *   post:
+ *     tags: [Proveedores]
+ *     summary: Crear proveedor
+ *     description: Requiere rol ADMIN.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ProveedorCreate'
+ *     responses:
+ *       201:
+ *         description: Proveedor creado
+ *       409:
+ *         $ref: '#/components/responses/Conflict'
+ */
+router.post('/', authorize('ADMIN', 'vendedor'), createRules, proveedorController.create);
+
+/**
+ * @swagger
+ * /proveedores/{id}:
+ *   put:
+ *     tags: [Proveedores]
+ *     summary: Actualizar proveedor completo
+ *     parameters:
+ *       - $ref: '#/components/parameters/idParam'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ProveedorCreate'
+ *     responses:
+ *       200:
+ *         description: Proveedor actualizado
+ */
+router.put('/:id', authorize('ADMIN', 'vendedor'), [...idParam, ...updateRules], proveedorController.update);
+
+/**
+ * @swagger
+ * /proveedores/{id}:
+ *   patch:
+ *     tags: [Proveedores]
+ *     summary: Actualizar proveedor parcialmente
+ *     parameters:
+ *       - $ref: '#/components/parameters/idParam'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               razonSocial:     { type: string }
+ *               nombreComercial: { type: string }
+ *               email:           { type: string }
+ *               telefono:        { type: string }
+ *               estado:          { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Proveedor actualizado parcialmente
+ */
+router.patch('/:id', authorize('ADMIN', 'vendedor'), [...idParam, ...updateRules], proveedorController.patch);
+
+/**
+ * @swagger
+ * /proveedores/{id}:
+ *   delete:
+ *     tags: [Proveedores]
+ *     summary: Desactivar proveedor (baja lógica)
+ *     description: Solo ADMIN. Cambia estado a false, no elimina el registro.
+ *     parameters:
+ *       - $ref: '#/components/parameters/idParam'
+ *     responses:
+ *       200:
+ *         description: Proveedor desactivado
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+router.delete('/:id', authorize('ADMIN', 'vendedor'), idParam, proveedorController.disable);
 
 module.exports = router;

@@ -7,12 +7,11 @@
 const prisma = require('../config/database');
 
 const DETAIL_INCLUDE = {
-  cliente:  { select: { id: true, nombres: true, apellidos: true, email: true, ruc: true, cedula: true } },
-  usuario:  { select: { id: true, nombre: true, apellido: true, email: true } },
+  cliente:  { select: { id: true, nombres: true, apellidosRazonSocial: true, email: true, identificacion: true } },
+  usuario:  { select: { id: true, username: true } },
   detalles: {
-    include: { producto: { select: { id: true, nombre: true, codigo: true, unidadMedida: true } } },
-  },
-  historialEstados: { orderBy: { creadoEn: 'desc' } },
+    include: { producto: { select: { id: true, nombre: true, codigo: true } } },
+  }
 };
 
 const findAll = ({ skip = 0, take = 20, estado, usuarioId, clienteId, search } = {}) =>
@@ -23,14 +22,14 @@ const findAll = ({ skip = 0, take = 20, estado, usuarioId, clienteId, search } =
       ...(clienteId && { clienteId }),
       ...(search    && {
         OR: [
-          { numero:  { contains: search, mode: 'insensitive' } },
+          { numeroProforma:  { contains: search, mode: 'insensitive' } },
           { cliente: { nombres: { contains: search, mode: 'insensitive' } } },
         ],
       }),
     },
     include: {
-      cliente: { select: { id: true, nombres: true, apellidos: true } },
-      usuario: { select: { id: true, nombre: true, apellido: true } },
+      cliente: { select: { id: true, nombres: true, apellidosRazonSocial: true } },
+      usuario: { select: { id: true, username: true } },
     },
     orderBy: { creadoEn: 'desc' },
     skip,
@@ -49,8 +48,8 @@ const count = ({ estado, usuarioId, clienteId } = {}) =>
 const findById = (id) =>
   prisma.proforma.findUnique({ where: { id }, include: DETAIL_INCLUDE });
 
-const findByNumero = (numero) =>
-  prisma.proforma.findUnique({ where: { numero }, include: DETAIL_INCLUDE });
+const findByNumero = (numeroProforma) =>
+  prisma.proforma.findUnique({ where: { numeroProforma }, include: DETAIL_INCLUDE });
 
 const create = (data) =>
   prisma.proforma.create({ data, include: DETAIL_INCLUDE });
@@ -59,12 +58,7 @@ const update = (id, data) =>
   prisma.proforma.update({ where: { id }, data, include: DETAIL_INCLUDE });
 
 const changeStatus = async (id, estadoDespues, motivo, estadoAntes) => {
-  return prisma.$transaction([
-    prisma.proforma.update({ where: { id }, data: { estado: estadoDespues } }),
-    prisma.historialEstadoProforma.create({
-      data: { proformaId: id, estadoAntes, estadoDespues, motivo },
-    }),
-  ]);
+  return prisma.proforma.update({ where: { id }, data: { estado: estadoDespues } });
 };
 
 const updatePdfUrl = (id, pdfUrl) =>
