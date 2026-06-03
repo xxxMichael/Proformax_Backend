@@ -51,14 +51,79 @@ const findById = (id) =>
 const findByNumero = (numeroProforma) =>
   prisma.proforma.findUnique({ where: { numeroProforma }, include: DETAIL_INCLUDE });
 
-const create = (data) =>
-  prisma.proforma.create({ data, include: DETAIL_INCLUDE });
+const create = async (data) => {
+  return prisma.$transaction(async (tx) => {
+    const proforma = await tx.proforma.create({ data, include: DETAIL_INCLUDE });
+    
+    // Descontar stock al crear la proforma
+    for (const d of proforma.detalles) {
+      await tx.producto.update({
+        where: { id: d.productoServicioId },
+        data: { stockActual: { decrement: Number(d.cantidad) } }
+      });
+    }
+    
+    return proforma;
+  });
+};
 
-const update = (id, data) =>
-  prisma.proforma.update({ where: { id }, data, include: DETAIL_INCLUDE });
+const update = async (id, data) => {
+  return prisma.$transaction(async (tx) => {
+    // Si se están actualizando los detalles (se mandó data.detalles)
+    if (data.detalles && data.detalles.create) {
+      // 1. Obtener proforma antigua para restaurar stock
+      const oldProforma = await tx.proforma.findUnique({
+        where: { id },
+        include: { detalles: true }
+      });
+
+      // 2. Restaurar stock de los detalles antiguos
+      for (const d of oldProforma.detalles) {
+        await tx.producto.update({
+          where: { id: d.productoServicioId },
+          data: { stockActual: { increment: Number(d.cantidad) } }
+        });
+      }
+
+      // 3. Actualizar la proforma (borra detalles antiguos y crea nuevos)
+      const proforma = await tx.proforma.update({ where: { id }, data, include: DETAIL_INCLUDE });
+
+      // 4. Descontar stock de los detalles nuevos
+      for (const d of proforma.detalles) {
+        await tx.producto.update({
+          where: { id: d.productoServicioId },
+          data: { stockActual: { decrement: Number(d.cantidad) } }
+        });
+      }
+
+      return proforma;
+    } else {
+      // Actualización normal sin tocar detalles ni stock
+      return tx.proforma.update({ where: { id }, data, include: DETAIL_INCLUDE });
+    }
+  });
+};
 
 const changeStatus = async (id, estadoDespues, motivo, estadoAntes) => {
-  return prisma.proforma.update({ where: { id }, data: { estado: estadoDespues } });
+  return prisma.$transaction(async (tx) => {
+    const proforma = await tx.proforma.update({ 
+      where: { id }, 
+      data: { estado: estadoDespues },
+      include: { detalles: true }
+    });
+
+    // Si se anula la proforma, se restaura el stock
+    if (estadoDespues === 'ANULADA' && estadoAntes !== 'ANULADA') {
+      for (const d of proforma.detalles) {
+        await tx.producto.update({
+          where: { id: d.productoServicioId },
+          data: { stockActual: { increment: Number(d.cantidad) } }
+        });
+      }
+    }
+
+    return proforma;
+  });
 };
 
 const updatePdfUrl = (id, pdfUrl) =>
