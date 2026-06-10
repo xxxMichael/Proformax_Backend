@@ -249,6 +249,7 @@ const findAll = ({ skip = 0, take = 20, proveedorId } = {}) => {
     orderBy: { creadoEn: 'desc' },
     include: {
       proveedor: { select: { id: true, identificacion: true, razonSocial: true } },
+      _count: { select: { detalles: true } }
     },
   });
 };

@@ -139,7 +139,7 @@ const confirmar = async ({ proveedorId, numeroFactura, fechaEmision, total, item
         data: {
           codigo: generatedCode,
           nombre: item.descripcion ? item.descripcion.substring(0, 150) : "Sin descripción",
-          tipo: 'BIEN',
+          tipo: 'producto',
           precioBase: parseFloat(item.precioUnitario) || 0,
           stockActual: 0,
           aplicaIva: true,
